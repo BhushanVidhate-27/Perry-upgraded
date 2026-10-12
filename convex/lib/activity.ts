@@ -83,6 +83,7 @@ const OWN_TOOLS: Record<string, (input: Record<string, unknown>) => Step> = {
   create_note: (input) => ({ label: typeof input.title === "string" ? `Writing “${short(input.title, 30)}”` : "Writing a note", pose: "typing" }),
   update_note: () => ({ label: "Updating a note", pose: "typing" }),
   read_page: (input) => ({ label: `Reading ${host(input.url)}`, pose: "reading" }),
+  read_link: (input) => ({ label: `Watching ${host(input.url)}`, pose: "reading" }),
   browser: (input) => {
     switch (input.action) {
       case "open": return { label: `Opening ${host(input.url)}`, pose: "reading" };

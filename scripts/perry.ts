@@ -794,7 +794,7 @@ async function update() {
 }
 
 const HELP = `
-  ${bold("perry")} setup | start | stop | status | logs [-f] | open | update | migrate | doctor | pair | pet | brain | run | uninstall
+  ${bold("perry")} setup | start | stop | status | logs [-f] | open | update | migrate | doctor | pair | pet | control | brain | run | uninstall
 
   ${bold("setup")}      set Perry up (or check it), start it in the background, open the dashboard;
              ${bold("--engine")} codex|claude|grok|antigravity picks the default engine without asking
@@ -808,6 +808,7 @@ const HELP = `
   ${bold("doctor")}     check this machine and Perry's server
   ${bold("pair")}       a new code to claim Perry on Telegram
   ${bold("pet")}        Perry on your desktop, with your to-dos; ${bold("pet off")} to stop him
+  ${bold("control")}    drive this computer from the terminal — keys, pointer, apps, and your own bindings; ${bold("control doctor")}
   ${bold("brain")}      ${bold("brain move-back")} puts memories back as they were before pages; ${bold("brain move-in")} moves them in again
   ${bold("run")}        run Perry in this terminal instead of the background
   ${bold("uninstall")}  stop Perry; keep its files, or remove them from this computer
@@ -827,6 +828,7 @@ async function main() {
     case "pair": return process.exit(exec(bunScript("pair.ts")).code);
     case "migrate": return process.exit(exec(bunScript("migrate.ts", rest)).code);
     case "pet": return process.exit((await (await import("./pet")).pet(rest)) ? 0 : 1);
+    case "control": return process.exit(await (await import("./perry-control")).perryControl(rest));
     case "brain": return process.exit((await brain(rest)) ? 0 : 1);
     case "run": return runForeground();
     case "link": return process.exit(link() ? 0 : 1);

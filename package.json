@@ -7,6 +7,7 @@
   "type": "module",
   "scripts": {
     "perry": "bun scripts/perry.ts",
+    "perry-control": "bun scripts/perry-control.ts",
     "setup": "bun scripts/setup.ts",
     "doctor": "bun scripts/doctor.ts",
     "pair": "bun scripts/pair.ts",

@@ -1,9 +1,9 @@
 /**
  * The engines a chat can run on: the coding agents on the owner's computer,
  * each signed in with the owner's own subscription. Codex, Claude Code, Grok
- * Build and Antigravity are built (runner/engines); Cursor is named here so a
- * chat, a turn or a runner's report can already hold it (runner/engine.ts
- * says how one is added).
+ * Build, Antigravity and OpenCode are built (runner/engines); Cursor is named
+ * here so a chat, a turn or a runner's report can already hold it
+ * (runner/engine.ts says how one is added).
  *
  * Which one Perry uses by default is the owner's choice, made in `perry
  * setup`, on the welcome page or in Settings → Engines, and kept on
@@ -13,11 +13,11 @@
  * Pure, with no server imports, so the browser bundle and the runner use it too.
  */
 
-export const ENGINES = ["codex", "claude", "grok", "cursor", "antigravity"] as const;
+export const ENGINES = ["codex", "claude", "grok", "cursor", "antigravity", "opencode"] as const;
 export type EngineKind = (typeof ENGINES)[number];
 
 /** The engines a runner drives today (runner/engines/index.ts): the ones the owner can choose as the default. */
-export const RUNNABLE_ENGINES: readonly EngineKind[] = ["codex", "claude", "grok", "antigravity"];
+export const RUNNABLE_ENGINES: readonly EngineKind[] = ["codex", "claude", "grok", "antigravity", "opencode"];
 export const isRunnable = (value: unknown): value is EngineKind => (RUNNABLE_ENGINES as readonly unknown[]).includes(value);
 
 /**
@@ -42,6 +42,7 @@ export const ENGINE_LABELS: Record<EngineKind, string> = {
   grok: "Grok Build",
   cursor: "Cursor",
   antigravity: "Antigravity",
+  opencode: "OpenCode",
 };
 
 /** What the sign-in button says: the account the owner signs in with. */
@@ -51,6 +52,7 @@ export const SIGN_IN_LABELS: Record<EngineKind, string> = {
   grok: "Sign in with Grok",
   cursor: "Sign in with Cursor",
   antigravity: "Sign in with Google",
+  opencode: "Sign in with OpenCode",
 };
 
 export const isEngine = (value: unknown): value is EngineKind => (ENGINES as readonly unknown[]).includes(value);
@@ -111,6 +113,13 @@ export function parseModelKey(key: string): { engine?: EngineKind; id: string } 
  *
  * Antigravity has none: Perry downloads the one version it pins
  * (runner/engines/antigravity.ts), so a newer one comes with Perry itself.
+ *
+ * OpenCode has none either, and no CLI_PACKAGES entry below: its CLI is a
+ * standalone binary installed by its own installer
+ * (`curl -fsSL https://opencode.ai/install | bash`), not the npm package
+ * `opencode-ai` (that name is still the old v1 line, so a lookup would be
+ * wrong and an `npm install -g opencode-ai` would downgrade it). Omitting it
+ * means Perry offers no update for OpenCode.
  */
 export const MINIMUM_VERSIONS: Partial<Record<EngineKind, string>> = { codex: "0.136.0", claude: "2.1.111", grok: "1.0.0" };
 

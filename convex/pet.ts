@@ -395,6 +395,9 @@ export const removeDevice = mutation({
     for (const row of await ctx.db.query("screenLooks").withIndex("by_status", (q) => q.eq("status", "asked")).collect()) {
       if (row.device === args.id) await ctx.db.patch(row._id, { status: "failed", error: "That computer was removed from Perry." });
     }
+    for (const row of await ctx.db.query("computerActions").withIndex("by_status", (q) => q.eq("status", "asked")).collect()) {
+      if (row.device === args.id) await ctx.db.patch(row._id, { status: "failed", error: "That computer was removed from Perry." });
+    }
     return null;
   },
 });

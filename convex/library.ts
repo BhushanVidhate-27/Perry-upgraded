@@ -424,6 +424,24 @@ export const file = query({
   },
 });
 
+/**
+ * Where a Library item's file is on this computer, for Perry's own tools (so a
+ * file it already knows can be sent to the owner's phone, files.ts). Only the
+ * local path: an item whose bytes are in Perry's storage has no file here to
+ * read, and is not this tool's business. Never from a chat with someone else.
+ */
+export const localFile = internalQuery({
+  args: { id: v.string() },
+  returns: v.union(v.null(), v.object({ path: v.string(), name: v.string(), contentType: v.string() })),
+  handler: async (ctx, args) => {
+    const id = ctx.db.normalizeId("library", args.id);
+    const item = id ? await ctx.db.get(id) : null;
+    if (!item || !item.localPath) return null;
+    if (item.conversationId && (await ctx.db.get(item.conversationId))?.contactId) return null;
+    return { path: item.localPath, name: item.name, contentType: item.contentType };
+  },
+});
+
 /** For Perry's tools: the owner's Library as filtered, never from a chat with someone else. */
 export const find = internalQuery({
   args: { ...vFilter, limit: v.optional(v.number()), conversationId: v.optional(v.id("conversations")) },

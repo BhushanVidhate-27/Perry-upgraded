@@ -1,6 +1,6 @@
 import type { ChatId, Perry, Turn } from "../scripts/perry-client";
 import type { Assertion, Outcome, Severity } from "./expect";
-import { judgeWithCodex } from "./judge";
+import { judge } from "./judge";
 
 /**
  * Behaviour checks against the live Perry, modelled on eve's evals. An eval
@@ -129,7 +129,7 @@ export async function runEval(id: string, definition: EvalDefinition, perry: Per
       const prompt = last?.prompt ?? "";
       const output = on ?? last?.message ?? "";
       return collector.record("judge", "soft", async () => {
-        const judgment = await judgeWithCodex({ criteria, prompt, output, model: options.judgeModel });
+        const judgment = await judge({ criteria, prompt, output, model: options.judgeModel });
         return { score: judgment.probability, message: judgment.reason, metadata: { criteria, judgment } };
       });
     },

@@ -19,6 +19,8 @@ export const SECRET_NAMES = [
   "TELEGRAM_BOT_TOKEN",
   "COMPOSIO_API_KEY",
   "GEMINI_API_KEY",
+  "PIPELINE_URL",
+  "PIPELINE_TOKEN",
 ] as const;
 
 export type SecretName = (typeof SECRET_NAMES)[number];
@@ -39,6 +41,14 @@ export const SECRET_LABELS: Record<SecretName, { label: string; hint: string }> 
   GEMINI_API_KEY: {
     label: "Gemini API key",
     hint: "For Antigravity, from aistudio.google.com/apikey. Only Antigravity's server on your computer gets it.",
+  },
+  PIPELINE_URL: {
+    label: "Link reader URL",
+    hint: "The deployed cloud/read-link Worker URL (the full https://…workers.dev).",
+  },
+  PIPELINE_TOKEN: {
+    label: "Link reader token",
+    hint: "The same random string you set as the Worker's PIPELINE_TOKEN secret.",
   },
 };
 

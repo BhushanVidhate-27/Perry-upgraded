@@ -70,6 +70,7 @@ type Bridge = VoiceBridge & {
   look?: (byOwner?: boolean) => Promise<TakenShot>;
   onLook?: (listener: (shot: TakenShot) => void) => () => void;
   setLookHotkey?: (accelerator: string) => Promise<HotkeyState>;
+  act?: (action: string, args?: any) => Promise<any>;
 };
 
 declare global {
@@ -224,6 +225,18 @@ function Pet() {
   const [tab, setTab] = useState<Tab>("chat");
   const [chatId, setChatIdState] = useState<PetChatId>(null);
   const [draft, setDraft] = useState("");
+  // The chat he was last in is remembered across restarts, but only adopted
+  // once it is known to be one of the chats (see below): asking for a chat by
+  // an id that is not one fails every read that takes one, taking the chat
+  // panel with it. So nothing is asked for until the chats have arrived and
+  // confirmed it, and a remembered chat that is not among them is let go of.
+  const [storedId, setStoredId] = useState<PetChatId>(null);
+  useEffect(() => { setStoredId(window.localStorage.getItem(CHAT_STORAGE) as PetChatId); }, []);
+  useEffect(() => {
+    if (!storedId || !chats) return;
+    if (chats.some((chat) => chat.id === storedId)) setChatIdState(storedId);
+    else { window.localStorage.removeItem(CHAT_STORAGE); setStoredId(null); }
+  }, [storedId, chats]);
   const petChat = useQuery(api.dashboard.getChat, chatId ? { key, id: chatId } : "skip");
   // What he is doing, step by step: in his chat, and anywhere else (a job, a message on the phone).
   const activity = useQuery(api.dashboard.getActivity, chatId ? { key, id: chatId } : "skip");
@@ -276,7 +289,6 @@ function Pet() {
     if (id) window.localStorage.setItem(CHAT_STORAGE, id);
     else window.localStorage.removeItem(CHAT_STORAGE);
   }, []);
-  useEffect(() => { setChatIdState(window.localStorage.getItem(CHAT_STORAGE) as PetChatId); }, []);
   const askToOpen = useMutation(api.pet.askToOpen);
   const claimOpen = useMutation(api.pet.claimOpen);
   /**
@@ -533,6 +545,28 @@ function Pet() {
       })();
     }
   }, [lookRequests, key, fulfilLook, say]);
+
+  const computerRequests = useQuery(api.computer.asked, window.perryPet ? { key } : "skip");
+  const fulfilComputer = useMutation(api.computer.fulfil);
+  const acting = useRef(new Set<string>());
+  useEffect(() => {
+    for (const request of computerRequests ?? []) {
+      if (acting.current.has(request.id)) continue;
+      acting.current.add(request.id);
+      void (async () => {
+        try {
+          if (!window.perryPet?.act) throw new Error("This desktop pet is from before computer control; restart the pet.");
+          const why = (request.args as any)?.why ?? request.action;
+          say("Taking the pointer", why, 4000);
+          const res = await window.perryPet.act(request.action, request.args);
+          if (res?.ok) await fulfilComputer({ key, id: request.id, result: res.result });
+          else await fulfilComputer({ key, id: request.id, error: res?.error ?? "Action failed" });
+        } catch (error) {
+          await fulfilComputer({ key, id: request.id, error: error instanceof Error ? error.message : String(error) }).catch(() => {});
+        }
+      })();
+    }
+  }, [computerRequests, key, fulfilComputer, say]);
   const lookNow = useCallback(async () => {
     const taken = await window.perryPet?.look?.(true).catch((error: unknown) => ({ error: String(error) }));
     if (taken) showShot(taken);

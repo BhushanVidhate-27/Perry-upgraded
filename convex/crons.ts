@@ -23,6 +23,9 @@ crons.interval("run due jobs", { minutes: 1 }, internal.jobs.tick, {});
 // The owner's to-dos: reminders on the phone for what comes due while they are away from the pet.
 crons.interval("remind of to-dos", { minutes: 1 }, internal.todos.tick, {});
 
+// Watches the owner started on their screen (screen.ts): each due one is asked of the pet for one picture.
+crons.interval("take watched screens", { seconds: 30 }, internal.screen.tickWatches, {});
+
 // Brain's archive: lines unused past the owner's age, or past the time they held until (archive.ts).
 crons.interval("archive unused lines", { hours: 6 }, internal.archive.run, {});
 

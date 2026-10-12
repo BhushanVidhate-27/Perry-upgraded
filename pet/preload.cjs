@@ -44,4 +44,5 @@ contextBridge.exposeInMainWorld("perryPet", {
     return () => ipcRenderer.off("pet:look", handler);
   },
   setLookHotkey: (accelerator) => ipcRenderer.invoke("pet:set-look-hotkey", String(accelerator)),
+  act: (action, args) => ipcRenderer.invoke("pet:act", action, args),
 });

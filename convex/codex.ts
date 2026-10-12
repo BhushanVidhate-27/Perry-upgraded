@@ -685,6 +685,15 @@ async function recordTrace(ctx: MutationCtx, job: Doc<"codexTurns">, trace: Infe
     if (row.kind === "fileChange" && row.status === "ok") await linkFiles(ctx, job.conversationId, run._id, row);
     if (existing) {
       await ctx.db.patch(existing._id, row);
+      // A step can be named only once it has run: OpenCode reports one `execute`
+      // wrapper and names the MCP tool inside it when the code and its result are
+      // in. Keep the run's tool calls in step with that renaming, not just with
+      // the name first seen.
+      if (existing.kind !== "reasoning" && (existing.kind !== row.kind || existing.name !== row.name)) {
+        const at = toolCalls.lastIndexOf(toolName(existing));
+        if (at === -1) toolCalls.push(toolName(row));
+        else toolCalls[at] = toolName(row);
+      }
       continue;
     }
     await ctx.db.insert("runSpans", { runId: run._id, ...row });

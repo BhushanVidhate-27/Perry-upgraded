@@ -25,6 +25,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { SCREEN_RECORDING_SETTINGS, capture, lookKey } from "./look.js";
 import { DEFAULT_HOTKEY, hotkeys, transcribe, warmUp } from "./voice.js";
+import { act } from "./control.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = join(HERE, "..");
@@ -564,6 +565,14 @@ if (!app.requestSingleInstanceLock({ argv })) {
         refreshMenu();
       }
       return { hotkey: look.current(), error: lookError };
+    });
+    ipcMain.handle("pet:act", async (_event, action, args) => {
+      try {
+        // Perry's own windows are excluded from any picture it takes, the way the Look hotkey does (pet/look.js capture).
+        return await act(action, args, [win, dismiss]);
+      } catch (error) {
+        return { ok: false, error: error instanceof Error ? error.message : String(error) };
+      }
     });
 
     // icon.png is 16 points; Electron takes icon@2x.png beside it on a scaled screen.

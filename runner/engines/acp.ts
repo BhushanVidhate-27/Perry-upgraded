@@ -268,6 +268,48 @@ function commandOf(input: unknown): string | undefined {
   return undefined;
 }
 
+/**
+ * The code of an agent's code-execution tool call. OpenCode runs every tool as
+ * JavaScript through one `execute` tool, and calls Perry's MCP tools in it as
+ * `tools.assistant.remember(...)` (see `perryTool`).
+ */
+function codeOf(input: unknown): string | undefined {
+  if (!input || typeof input !== "object") return undefined;
+  const value = (input as Record<string, unknown>).code;
+  return typeof value === "string" ? value : undefined;
+}
+
+/**
+ * Perry's MCP tool name in a code-execution call's source, or undefined. The
+ * model reaches the server as `tools.assistant.remember(...)`, but writes that
+ * path any of many equivalent ways — `tools["assistant"]["remember"]`,
+ * `tools?.assistant?.remember` — so quoted brackets and optional chaining are
+ * folded to dots first, then the plain path is matched.
+ */
+function perryToolIn(code: string | undefined): string | undefined {
+  if (!code) return undefined;
+  const dotted = code
+    .replace(/\[\s*["'`](\w+)["'`]\s*\]/g, ".$1")
+    .replace(/\?\s*\./g, ".");
+  return dotted.match(/\btools\s*\.\s*assistant\s*\.\s*(\w+)/)?.[1];
+}
+
+/**
+ * Perry's MCP tool name from an `execute` call's result, or undefined. Once
+ * OpenCode has run the code, the result lists what it actually called —
+ * `metadata.toolCalls: [{ tool: "assistant.search_chats", ... }]` — which names
+ * the tool plainly, however the source reached it (destructured, aliased, and
+ * so on). Read after the code, so the code's own name wins while it runs.
+ */
+function perryToolInOutput(output: unknown): string | undefined {
+  const calls = (output as { metadata?: { toolCalls?: Array<{ tool?: string }> } } | undefined)?.metadata?.toolCalls;
+  for (const call of calls ?? []) {
+    const match = call.tool?.match(/^assistant[._](\w+)$/);
+    if (match) return match[1];
+  }
+  return undefined;
+}
+
 /** The text of a tool call's content: its text blocks, and diffs as unified-style lines. */
 function contentText(call: ToolCall): string | undefined {
   const parts = (call.content ?? []).map((content) => {
@@ -535,7 +577,12 @@ ${line}`.slice(-4000); this.onText(line); });
         if (capabilities?.loadSession) return await this.load(conn, cursor, cwd, mcpServers);
         throw new Error(`${this.label} cannot resume a session.`);
       } catch (error) {
-        if (this.isAuthError(error) || conn.closed) throw error;
+        // A session this agent no longer has in the state it was left — a model
+        // it does not offer any more, for one — cannot be resumed, and says so
+        // in whatever words it likes (often as an auth or provider error). The
+        // chat gets a fresh session instead, which is configured from the model
+        // list and so runs; only a closed agent process is a real failure here.
+        if (conn.closed) throw error;
         this.warn(`${this.label} could not resume this chat's session (${message(error)}); starting a new one.`);
         const fresh = await this.newSession(conn, cwd, mcpServers);
         await sink.onSession(fresh.id, cursor);
@@ -889,9 +936,15 @@ ${line}`.slice(-4000); this.onText(line); });
   }
 
   /** Whether a tool call is to Perry's own MCP server, however the agent names it. */
-  private perryTool(call: Pick<ToolCall, "title" | "name">): string | undefined {
+  private perryTool(call: Pick<ToolCall, "title" | "name" | "rawInput" | "rawOutput">): string | undefined {
     const name = `${call.name ?? ""} ${call.title ?? ""}`;
-    return name.match(/\bassistant(?:__|[./:_-]|\s+)(\w+)/i)?.[1] ?? name.match(/mcp__assistant__(\w+)/i)?.[1];
+    const named = name.match(/\bassistant(?:__|[./:_-]|\s+)(\w+)/i)?.[1] ?? name.match(/mcp__assistant__(\w+)/i)?.[1];
+    if (named) return named;
+    // OpenCode names no MCP tool directly: it hands the model one code-execution
+    // tool and the model writes `await tools.assistant.remember({ ... })`, so the
+    // real tool is in the code it ran (or in its result), not in the call's own
+    // name or title.
+    return perryToolIn(codeOf(call.rawInput)) ?? perryToolInOutput(call.rawOutput);
   }
 
   private toItem(turn: Turn, call: ToolCall): EngineItem {

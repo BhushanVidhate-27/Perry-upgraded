@@ -3,6 +3,7 @@ import { ClaudeEngine } from "./claude";
 import { CodexEngine } from "./codex";
 import { AntigravityEngine } from "./antigravity";
 import { GrokEngine } from "./grok";
+import { OpenCodeEngine } from "./opencode";
 
 /**
  * The engines this runner can drive. Each is made once and starts its CLI
@@ -12,6 +13,7 @@ export function createEngines(options: { warn: (line: string) => void; secret?: 
   const engines: Engine[] = [
     new CodexEngine(options.warn),
     new GrokEngine(options.warn),
+    new OpenCodeEngine(options.warn),
     new ClaudeEngine(options.warn),
     new AntigravityEngine(options.warn, options.secret),
   ];

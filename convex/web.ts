@@ -43,6 +43,8 @@ const MAX_REDIRECTS = 10;
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 /** Launching the browser, loading the page and waiting out a bot check that clears itself. */
 const BROWSER_TIMEOUT_MS = 30_000;
+/** The cloud link reader downloads the media and transcribes it; a long video takes a while. */
+const LINK_TIMEOUT_MS = 120_000;
 
 /**
  * One local site, as host:port, read as if it were public, so an end-to-end
@@ -524,6 +526,53 @@ export const read = internalAction({
   args: { url: v.string() },
   handler: async (_ctx, args): Promise<FetchedPage> => {
     return await fetchPage(args.url);
+  },
+});
+
+/**
+ * A link the owner shared, read in the cloud (cloud/read-link): the real media
+ * is downloaded and transcribed there, because social platforms block plain
+ * fetches and this machine may be asleep. The endpoint and its shared token are
+ * Perry's own secrets (secrets.ts); with neither set this says so rather than
+ * guessing. Returns the transcript for the agent to act on. read_link
+ * (tools.ts) is the tool the model actually calls.
+ */
+export const ingestLink = internalAction({
+  args: { url: v.string() },
+  returns: v.object({
+    transcript: v.string(),
+    r2Key: v.optional(v.string()),
+    title: v.optional(v.string()),
+    error: v.optional(v.string()),
+  }),
+  handler: async (ctx, args): Promise<{ transcript: string; r2Key?: string; title?: string; error?: string }> => {
+    const endpoint = await ctx.runQuery(internal.secrets.get, { name: "PIPELINE_URL" });
+    const token = await ctx.runQuery(internal.secrets.get, { name: "PIPELINE_TOKEN" });
+    if (!endpoint || !token) {
+      return { transcript: "", error: "The link reader is not set up: add PIPELINE_URL and PIPELINE_TOKEN in Settings, from cloud/read-link." };
+    }
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+        body: JSON.stringify({ url: args.url }),
+        signal: AbortSignal.timeout(LINK_TIMEOUT_MS),
+      });
+      const data = (await response.json().catch(() => null)) as { transcript?: unknown; r2Key?: unknown; title?: unknown; error?: unknown } | null;
+      if (!response.ok) {
+        const why = data && typeof data.error === "string" ? data.error : `The link reader answered ${response.status}.`;
+        return { transcript: "", error: why };
+      }
+      const r2Key = typeof data?.r2Key === "string" ? data.r2Key : undefined;
+      const title = typeof data?.title === "string" ? data.title : undefined;
+      const said = typeof data?.transcript === "string" ? data.transcript : "";
+      if (!said) return { transcript: "", r2Key, title, error: "The link was read but nothing was said in it, or it had no speech." };
+      // A long video's transcript is unbounded: bound what enters the model's context, as read_page does.
+      const { output, truncated } = truncateHead(said);
+      return { transcript: truncated ? `${output}\n\n[transcript truncated: showing its start]` : output, r2Key, title };
+    } catch (error) {
+      return { transcript: "", error: describeError(error).message };
+    }
   },
 });
 

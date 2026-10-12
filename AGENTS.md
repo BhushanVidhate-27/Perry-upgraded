@@ -6,9 +6,10 @@
 
 ## Verification
 
-- Never write unit tests after writing code.
-- Prefer end-to-end tests as the sole testing mechanism for complex features. End each E2E run with a verifiable, repeatable artifact.
-- If a system must be tested in isolation, write down every way it could fail before writing the test code.
+- Prefer end-to-end tests as the primary mechanism for complex features. End each E2E run with a verifiable, repeatable artifact.
+- Do not bolt on a `*.test.ts` after the fact just to assert code you just wrote. That is the one thing never to do: a test added to prove the code works is not a check, it is a witness.
+- New non-trivial logic — a branch, a loop, a parser, money or security, or a whole new script or app — does leave a check behind: one small test or an assert-based self-check that fails when it breaks. One good check, not coverage. Write down every way it could fail before writing it, and keep it next to the logic it guards.
+- The two together: E2E for how a feature behaves, and a small pre-written check for the risky logic inside it. A feature needs both; neither substitutes for the other.
 
 ## Development
 

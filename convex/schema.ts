@@ -90,7 +90,7 @@ export const vCodexModel = v.object({
   defaultEffort: v.optional(v.string()),
 });
 /** The engine a chat, turn or job runs on (lib/engines.ts). */
-export const vEngine = v.union(v.literal("codex"), v.literal("claude"), v.literal("grok"), v.literal("cursor"), v.literal("antigravity"));
+export const vEngine = v.union(v.literal("codex"), v.literal("claude"), v.literal("grok"), v.literal("cursor"), v.literal("antigravity"), v.literal("opencode"));
 /** What the owner does to finish signing an engine in (lib/engines.ts, LoginInteraction). */
 export const vLoginInteraction = v.union(
   v.object({ type: v.literal("browser"), url: v.string() }),
@@ -289,6 +289,8 @@ export default defineSchema({
      * was stopped. When, and where the owner paused it.
      */
     paused: v.optional(v.object({ at: v.number(), by: vPauseSource })),
+    /** False when the owner turned off Perry controlling the mouse and keyboard. Unset: on. */
+    computerControl: v.optional(v.boolean()),
     createdAt: v.number(),
   }),
 
@@ -436,6 +438,48 @@ export default defineSchema({
     error: v.optional(v.string()),
     createdAt: v.number(),
     /** The pet asked: one on another computer, or none for the one on Perry's own. */
+    device: v.optional(v.id("petDevices")),
+  }).index("by_status", ["status", "createdAt"]),
+
+  /**
+   * A watch the owner started on their screen (screen.ts, the watch_my_screen
+   * tool): a picture taken every `everyMs` until `until`, so Perry can follow
+   * something that changes on its own ("tell me when the build finishes").
+   * Every watch is the owner's own ask and stops on its own at `until`; there
+   * is no watch that runs forever or starts by itself. Each tick asks the pet
+   * for one picture exactly as look_at_screen does, so a watched screen runs
+   * through the same permission, hiding and "shown in the chat" path.
+   */
+  screenWatches: defineTable({
+    conversationId: v.id("conversations"),
+    /** What to picture: the window in front, or the whole screen. */
+    which: v.union(v.literal("window"), v.literal("screen")),
+    /** What the owner asked to watch for, in their words. */
+    why: v.string(),
+    /** Milliseconds between pictures, clamped to what the tick can honour. */
+    everyMs: v.number(),
+    /** When it stops on its own; a watch never runs past this. */
+    until: v.number(),
+    status: v.union(v.literal("on"), v.literal("stopped")),
+    /** When the last picture was taken, so the tick knows when the next is due. */
+    lastAt: v.optional(v.number()),
+    createdAt: v.number(),
+  }).index("by_status", ["status", "createdAt"]),
+
+  /**
+   * Perry controlling the computer (mouse/keyboard): in a chat, the use_computer
+   * tool asks here, the desktop pet executes the action, and the tool returns
+   * the result (including a fresh screenshot after acting actions).
+   */
+  computerActions: defineTable({
+    conversationId: v.id("conversations"),
+    action: v.string(),          // "move","click","drag","scroll","type","key","open_app","look","element_at","front_app",...
+    args: v.any(),
+    why: v.string(),
+    status: v.union(v.literal("asked"), v.literal("done"), v.literal("failed")),
+    result: v.optional(v.any()),
+    error: v.optional(v.string()),
+    createdAt: v.number(),
     device: v.optional(v.id("petDevices")),
   }).index("by_status", ["status", "createdAt"]),
 

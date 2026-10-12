@@ -19,6 +19,7 @@ import { platform, release, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { ENGINE_LABELS, updateOf, versionIn, type EngineKind } from "../convex/lib/engines";
 import { antigravityDirs } from "../runner/engines/antigravity";
+import { opencodeCommand } from "../runner/engines/opencode";
 import { sandboxMode } from "../runner/codex";
 import { HOME, readRunnerConfig } from "../runner/home";
 import { latestVersionNow, updateCommand } from "../runner/versions";
@@ -103,6 +104,16 @@ async function checkMachine() {
       installedHere.add(kind);
       await checkVersion(kind, label, lastLine(ran.output));
     } else note(label, `not installed (optional). To use it: ${INSTALL_COMMANDS[kind]}`);
+  }
+  // OpenCode installs a standalone binary outside PATH's usual places, and its
+  // own installer keeps it current, so Perry checks only that it is here.
+  const opencode = opencodeCommand();
+  const opencodeRan = await run(opencode.command, [...opencode.args, "--version"]);
+  if (opencodeRan.code === 0 && versionIn(opencodeRan.output)) {
+    installedHere.add("opencode");
+    ok("opencode", versionIn(opencodeRan.output) ?? lastLine(opencodeRan.output));
+  } else {
+    note("opencode", `not installed (optional). To use it: ${INSTALL_COMMANDS.opencode}`);
   }
   // Antigravity is Google's server, downloaded into Perry's folder when it is turned on in Settings.
   const antigravity = existsSync(antigravityDirs.server) && readdirSync(antigravityDirs.server).length > 0;

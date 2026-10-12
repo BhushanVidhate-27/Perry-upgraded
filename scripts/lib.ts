@@ -119,8 +119,10 @@ export const INSTALL_HINTS = {
 /**
  * The command that installs an engine's CLI here, as its maker documents it,
  * for `perry setup` to offer and run: npm's package for Codex and Grok Build,
- * Claude Code's own installer. Antigravity has none: Perry downloads Google's
- * server itself when it is turned on in Settings → Engines.
+ * Claude Code's own installer, and OpenCode's own installer (its v2 line, the
+ * one whose ACP the runner drives; the npm `opencode-ai` package is its older
+ * v1 line). Antigravity has none: Perry downloads Google's server itself when
+ * it is turned on in Settings → Engines.
  */
 export const INSTALL_COMMANDS: Partial<Record<EngineKind, string>> = {
   codex: "npm install -g @openai/codex",
@@ -128,6 +130,11 @@ export const INSTALL_COMMANDS: Partial<Record<EngineKind, string>> = {
     ? `powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://claude.ai/install.ps1 | iex"`
     : "curl -fsSL https://claude.ai/install.sh | bash",
   grok: "npm install -g @xai-official/grok",
+  // OpenCode documents no Windows install script; its npm package carries the
+  // same native CLI there.
+  opencode: process.platform === "win32"
+    ? "npm install -g @opencode/cli"
+    : "curl -fsSL https://opencode.ai/v2/install | bash",
 };
 
 /**

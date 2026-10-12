@@ -1,6 +1,7 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 /**
  * Assistant's home on this machine, the way Claude Code has ~/.claude and
@@ -14,7 +15,8 @@ import { join } from "node:path";
  *   uploads/        files the owner attached in chat
  *   files/          the agent's own folder for what it makes, organised as it sees fit
  *   steps/          small pictures of Perry's browser for the chat's steps; the newest are kept
- *   skills/         the agent's skills, one folder each with a SKILL.md, found by Codex
+ *   skills/         the agent's skills, one folder each with a SKILL.md, found by Codex; Perry's
+ *                   own ship in runner/skills and are copied in here once, when not already there
  *   logs/           the runner's output when it runs as a background service
  *   claude-models.json  the models Claude Code last said this account has
  *   engine-versions.json  the newest release of each engine's CLI, as last looked up
@@ -46,7 +48,46 @@ export const PATHS = {
 
 export function ensureHome() {
   for (const dir of [HOME, PATHS.codexResults, PATHS.uploads, PATHS.files, PATHS.skills]) mkdirSync(dir, { recursive: true });
+  seedSkills();
   return PATHS;
+}
+
+/**
+ * The skills Perry ships with, beside this file (runner/skills): memory skills
+ * in the Agent Skills shape, a folder with a SKILL.md. Resolved lazily, because
+ * this file is also bundled into the dashboard's server, where the path need
+ * not resolve; a missing directory just means nothing is seeded.
+ */
+function shippedSkills(): string | null {
+  let here: string | null = null;
+  try { here = dirname(fileURLToPath(import.meta.url)); } catch { here = null; }
+  for (const dir of [here && join(here, "skills"), join(process.cwd(), "runner", "skills")]) {
+    if (dir && existsSync(dir)) return dir;
+  }
+  return null;
+}
+
+/**
+ * Copy Perry's shipped skills into the owner's skills folder, each only when
+ * the skill is not already there. An owner's edited or imported skill of the
+ * same name is left exactly as it is, never overwritten.
+ */
+function seedSkills() {
+  const from = shippedSkills();
+  if (!from) return;
+  let names: string[];
+  try {
+    names = readdirSync(from, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && !entry.name.startsWith("."))
+      .map((entry) => entry.name);
+  } catch {
+    return;
+  }
+  for (const name of names) {
+    const to = join(PATHS.skills, name);
+    if (existsSync(to)) continue;
+    try { cpSync(join(from, name), to, { recursive: true, force: false, errorOnExist: true }); } catch {}
+  }
 }
 
 /** How this machine's runner connects. Written by Perry's server, the runner and `pnpm run connect`. */

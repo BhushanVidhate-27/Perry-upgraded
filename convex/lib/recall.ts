@@ -9,7 +9,9 @@ import * as chrono from "chrono-node";
  * Each list counts by place (reciprocal rank fusion), and then each line by
  * what it is: an episode (a day's note) fades with age, a preference said
  * again gets stronger, a line from the days asked about counts double, and
- * one recently used a little more.
+ * one recently used a little more. A word counts as said however the owner
+ * says it ("mobile" for "phone", "plants" for "plant"), and what states the
+ * question's words in a row, or sits under a heading it names, counts more.
  *
  * Ideas, not code, from looking at Supermemory: a line's type, when what it
  * says happens as against when it was said, a date filter from the question,
@@ -138,13 +140,53 @@ const termsOf = (text: string) => text.toLocaleLowerCase().split(/[^\p{L}\p{N}\p
 /** The telling words of a question: not the common ones, nor those under three letters. */
 export const tellingWords = (query: string) => termsOf(query).filter((term) => term.length >= 3 && !STOP.has(term));
 
-/** Whether a line has every telling word of the question (the last may be the start of one): an exact match by words. */
+/** A telling word down to its crude root ("plants" to "plant", "called" to "call", "married" to "marry"): spelling, not meaning. */
+export function stemOf(term: string): string {
+  if (/ied$/.test(term) && term.length > 4) return `${term.slice(0, -3)}y`;
+  if (/ies$/.test(term) && term.length > 4) return `${term.slice(0, -3)}y`;
+  let root = term;
+  if (/ing$/.test(root) && root.length > 5) root = root.slice(0, -3);
+  else if (/ed$/.test(root) && root.length > 4) root = root.slice(0, -2);
+  // A doubled consonant from a suffix ("running" to "run"), never a doubled l, s or z ("called" stays "call").
+  if (/([^aeiou])\1$/.test(root) && root.length > 3 && !/[lsz]$/.test(root)) root = root.slice(0, -1);
+  if (/sses$|ches$|shes$|xes$|zes$/.test(root)) return root.slice(0, -2);
+  if (/s$/.test(root) && root.length > 3 && !/ss$|us$|is$|ous$|ias$/.test(root)) return root.slice(0, -1);
+  return root;
+}
+
+/** Common memory phrasings of the same thing, as the owner writes it or asks it: which number, where home is, whose wedding. */
+const SAME_AS: Array<string[]> = [
+  ["phone", "mobile"],
+  ["email", "mail"],
+  ["birthday", "born"],
+  ["wedding", "marry", "married", "marriage"],
+  ["wife", "wives", "husband", "husbands", "spouse"],
+  ["child", "children", "kid", "kids"],
+  ["live", "lives", "living", "lived", "move", "moved", "moving", "address", "home"],
+  ["allergy", "allergies", "allergic"],
+  ["mom", "mum", "mummy", "mother"],
+  ["dad", "daddy", "father"],
+];
+const SAME_MAP = new Map<string, string[]>(SAME_AS.flatMap((group) => group.map((term) => [term, group])));
+
+/** A telling word however the owner might have said it: itself, its root, and its common sayings ("mobile" for "phone"). */
+export function variantsOf(term: string): string[] {
+  const root = stemOf(term);
+  const found = new Set([term, root, ...(SAME_MAP.get(term) ?? []), ...(root !== term ? (SAME_MAP.get(root) ?? []) : [])]);
+  return [...found];
+}
+
+/** Whether a line has every telling word of the question, as said or as otherwise said (the last may be the start of one): an exact match by words. */
 export function hasAllWords(query: string, text: string): boolean {
-  const wanted = termsOf(query).filter((term) => term.length >= 3 && !STOP.has(term));
+  const wanted = tellingWords(query);
   if (!wanted.length) return false;
   const have = termsOf(text);
   const set = new Set(have);
-  return wanted.every((term, index) => set.has(term) || (index === wanted.length - 1 && have.some((word) => word.startsWith(term))));
+  return wanted.every((term, index) => {
+    const variants = variantsOf(term);
+    if (variants.some((variant) => set.has(variant))) return true;
+    return index === wanted.length - 1 && variants.some((variant) => have.some((word) => word.startsWith(variant)));
+  });
 }
 
 /** What each way of searching found for a question, before ranking. */
@@ -158,12 +200,41 @@ export type RecallParts = {
 /**
  * How the lists weigh, measured on labelled questions (artifacts/brain-scale/tune.ts): the fusion constant, each
  * list's weight, how far below the closest a line's meaning may be and still count (in cosine, for
- * multilingual-e5-small, whose scores bunch between 0.75 and 0.9), and the least an old episode weighs.
+ * multilingual-e5-small, whose scores bunch between 0.75 and 0.9), the least an old episode weighs, and the
+ * rerank's boosts: stating the question's words in a row counts half again, sitting under a heading it names
+ * a quarter more.
  */
-export const RANKING = { k: FUSION_K, words: 0.6, exact: 1, meaning: 1, dated: 1, mentioned: 0.5, margin: 0.05, episodeFloor: 0.75 };
+export const RANKING = { k: FUSION_K, words: 0.6, exact: 1, meaning: 1, dated: 1, mentioned: 0.5, margin: 0.05, episodeFloor: 0.75, phrase: 1.5, heading: 1.25 };
 export type Ranking = typeof RANKING;
 
-/** The lines found, best first: lists fused by place, then each weighed by what it is (weightOf). */
+/** Whether a line states the question's telling words in a row ("my houseplant is called" for "what is my houseplant called"): spelling, not meaning. */
+export function statesPhrase(query: string, text: string): boolean {
+  const wanted = tellingWords(query);
+  if (wanted.length < 2) return false;
+  return ` ${tellingWords(text).join(" ")} `.includes(` ${wanted.join(" ")} `);
+}
+
+/** Whether a line sits under a heading the question names: its section, or its page's title ("Lisbon" and the page "Lisbon trip"). */
+export function matchesHeading(query: string, line: { section?: string; page?: { title: string } }): boolean {
+  const heading = [line.section, line.page?.title].filter(Boolean).join(" ");
+  if (!heading) return false;
+  const words = new Set([...termsOf(heading), ...termsOf(heading).map(stemOf)]);
+  return tellingWords(query).some((term) => words.has(term) || words.has(stemOf(term)));
+}
+
+/**
+ * The scored lines reranked, best first: what states the question's words in
+ * a row counts half again, what sits under a heading it names a quarter more.
+ * The fused place stays the base — the two together never double a score, so
+ * they settle near ties rather than overrule what the search found.
+ */
+export function rerank<T extends Weighed & { text: string; section?: string; page?: { title: string } }>(query: string, scored: Array<T & { score: number }>, ranking: Ranking = RANKING): Array<T & { score: number }> {
+  return scored
+    .map((line) => ({ ...line, score: line.score * (statesPhrase(query, line.text) ? ranking.phrase : 1) * (matchesHeading(query, line) ? ranking.heading : 1) }))
+    .sort((a, b) => b.score - a.score);
+}
+
+/** The lines found, best first: lists fused by place, then each weighed by what it is (weightOf), then reranked by phrase and heading. */
 export function rankRecall<T extends Weighed & { text: string }>(query: string, parts: RecallParts, lines: Map<string, T>, now: number, range: DateRange | null, ranking: Ranking = RANKING): Array<T & { score: number }> {
   // Meaning's scores bunch together for some models: only those near the closest count, so noise does not crowd out words.
   const near = (list: Array<{ id: string; similarity: number }>) => list.filter((item) => item.similarity >= (list[0]?.similarity ?? 0) - ranking.margin).map((item) => item.id);
@@ -179,10 +250,9 @@ export function rankRecall<T extends Weighed & { text: string }>(query: string, 
     { ids: near(parts.dated), weight: ranking.dated },
     { ids: mentioned, weight: ranking.mentioned },
   ], ranking.k);
-  return [...fused]
+  return rerank(query, [...fused]
     .filter(([id]) => lines.has(id))
-    .map(([id, fusion]) => ({ ...lines.get(id)!, score: fusion * weightOf(lines.get(id)!, now, range, ranking.episodeFloor) }))
-    .sort((a, b) => b.score - a.score);
+    .map(([id, fusion]) => ({ ...lines.get(id)!, score: fusion * weightOf(lines.get(id)!, now, range, ranking.episodeFloor) })), ranking);
 }
 
 /**

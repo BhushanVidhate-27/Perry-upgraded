@@ -523,6 +523,8 @@ function DesktopPet() {
   const setTheme = useAction(api.pet.setTheme);
   const screenLook = useQuery(api.screen.getSetting, { key: dashboardKey });
   const setScreenLook = useMutation(api.screen.setSetting);
+  const computerControl = useQuery(api.computer.getSetting, { key: dashboardKey });
+  const setComputerControl = useMutation(api.computer.setSetting);
   // Shown as picked at once; the file is read back when the pet next checks in.
   const [picked, setPicked] = useState<PetTheme | null>(null);
   const theme = picked ?? pet?.theme;
@@ -544,6 +546,16 @@ function DesktopPet() {
         <div className="text-sm">
           <label htmlFor="screen-look" className="font-medium">Let Perry look at the screen when he needs to</label>
           <p className="mt-0.5 text-pretty text-muted-foreground">Only in chats, never in scheduled or background work. What he saw shows in the chat.</p>
+        </div>
+      </div>
+      <div className="mt-4 flex items-start gap-3">
+        <Switch id="computer-control" checked={computerControl ?? true} disabled={computerControl === undefined} className="mt-0.5"
+          onCheckedChange={(enabled) => void setComputerControl({ key: dashboardKey, enabled }).then(
+            () => toast.success(enabled ? "Perry can move the mouse and keyboard when asked." : "Mouse and keyboard control is off."),
+            (cause) => toast.error(errorText(cause)))} />
+        <div className="text-sm">
+          <label htmlFor="computer-control" className="font-medium">Let Perry control the mouse and keyboard</label>
+          <p className="mt-0.5 text-pretty text-muted-foreground">Only in chats with the owner, with a heads-up and approval per destructive action.</p>
         </div>
       </div>
       <PetDevices />

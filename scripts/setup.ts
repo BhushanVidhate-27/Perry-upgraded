@@ -14,8 +14,8 @@
  * it lists each one as installed and signed in or not, asks which should be
  * the default, and offers to install and sign in to that one. With exactly
  * one ready it is offered first, and still confirmed. Without a terminal to
- * ask in, `--engine <codex|claude|grok|antigravity>` or PERRY_ENGINE says
- * which, and without either it stops rather than guess.
+ * ask in, `--engine <codex|claude|grok|opencode|antigravity>` or PERRY_ENGINE
+ * says which, and without either it stops rather than guess.
  */
 
 import { randomBytes } from "node:crypto";
@@ -26,6 +26,7 @@ import { ENGINE_LABELS, isRunnable, RUNNABLE_ENGINES, updateOf, type EngineKind 
 import type { Engine, EngineStatus } from "../runner/engine";
 import { createEngines } from "../runner/engines";
 import { findClaude } from "../runner/engines/claude";
+import { opencodeCommand } from "../runner/engines/opencode";
 import { commandOf } from "../runner/engines/process";
 import { ensureHome, HOME, PATHS } from "../runner/home";
 import { latestVersionNow, updateCommand } from "../runner/versions";
@@ -202,6 +203,13 @@ async function signIn(kind: EngineKind): Promise<boolean> {
     const grok = commandOf("PERRY_GROK_COMMAND", "grok");
     say(dim("  Signing in to Grok Build with its own sign-in.\n"));
     await runOnPath(grok.command, [...grok.args, "login", ...(headless ? ["--device-auth"] : [])], { quiet: false });
+    return true;
+  }
+  if (kind === "opencode") {
+    // OpenCode's bundled models need no sign-in; this connects the owner's own providers.
+    const opencode = opencodeCommand();
+    say(dim("  Connecting OpenCode to your own providers with its own sign-in.\n"));
+    await run(opencode.command, [...opencode.args, "auth", "login"], { quiet: false });
     return true;
   }
   // Antigravity is turned on from Settings, where its Gemini API key is kept.
