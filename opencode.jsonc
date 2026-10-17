@@ -1,0 +1,47 @@
+{
+  // Project config for the agents working on Perry.
+  // Skills live in .opencode/skills/ and agents in .opencode/agents/ (auto-discovered).
+  "$schema": "https://opencode.ai/config.json",
+
+  // Deep-reasoning default for real coding work. Swap with /models any time.
+  // Zen-only for now; see .opencode/skills/perry-verify for the eval gate.
+  // (The root model drops a #variant in V2 — pick a variant per session via /models,
+  // or per agent below.)
+  "model": "opencode/space-bunny-free",
+
+  // Free options besides OpenCode Zen (the default above). All of these are
+  // built-in catalog providers, so enable one by connecting it once, not by
+  // writing more config here:
+  //
+  //   /connect                # pick a provider, paste a key or finish OAuth
+  //   opencode auth login <id> --method key      # same, from the shell
+  //
+  //   openrouter       free models end in ":free"      connect, or set OPENROUTER_API_KEY
+  //   google           Gemini free tier                connect, or set GEMINI_API_KEY
+  //   groq             free tier                        connect, or set GROQ_API_KEY
+  //   cerebras         free tier                        connect, or set CEREBRAS_API_KEY
+  //   github-copilot   Copilot Free, device OAuth       /connect → GitHub Copilot
+  //   ollama / lmstudio / vllm   local, no account      start the server, then /models
+  //
+  // The env arrays below only name the variables the OpenCode server reads;
+  // they do not carry secrets.
+  "providers": {
+    "openrouter": { "env": ["OPENROUTER_API_KEY"] },
+    "google": { "env": ["GEMINI_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY", "GOOGLE_API_KEY"] },
+    "groq": { "env": ["GROQ_API_KEY"] },
+    "cerebras": { "env": ["CEREBRAS_API_KEY"] },
+    "github-copilot": { "env": ["GITHUB_TOKEN"] }
+  },
+
+  // Last matching rule wins. The catch-all allows every action, so OpenCode
+  // never stops to ask; the one hard block left is recursive force-delete,
+  // which denies (rather than asks), so it never prompts either. Add your own
+  // { action, resource, effect } rules before the deny to carve out exceptions.
+  "permissions": [
+    { "action": "*", "resource": "*", "effect": "allow" },
+    { "action": "shell", "resource": "rm -rf *", "effect": "deny" }
+  ]
+
+  // No "formatter": true — this repo keeps deliberately long lines, and a
+  // built-in formatter would reflow them.
+}

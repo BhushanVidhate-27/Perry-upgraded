@@ -1,0 +1,76 @@
+{
+  "id": "reads-web-page",
+  "description": "Reads a URL with its read_page tool rather than guessing.",
+  "tags": [
+    "tools",
+    "web"
+  ],
+  "verdict": "passed",
+  "assertions": [
+    {
+      "name": "calledTool(read_page)",
+      "score": 1,
+      "severity": "gate",
+      "passed": true,
+      "errored": false,
+      "metadata": {
+        "calls": 1
+      }
+    },
+    {
+      "name": "includes(Example Domain)",
+      "score": 1,
+      "severity": "gate",
+      "passed": true,
+      "errored": false
+    }
+  ],
+  "turns": [
+    {
+      "chatId": "akn4ekd6ahcv4n2vm0en7znb34",
+      "prompt": "This is an automated test. Read https://example.com and tell me the page's main heading, exactly as written.",
+      "message": "The page (example.com) has no heading element at all — no `<h1>`. What it does have:\n\n- **Title:** `Example Domain`\n- **Body text (the only paragraph):** `This domain is for use in documentation examples without needing permission. This is not a service; avoid relying on it for testing and monitoring purposes.`\n\nSo if you mean the document title, it's **Example Domain**; if you mean an on-page heading, there isn't one in the current markup.",
+      "toolCalls": [
+        "read_page",
+        "web_search"
+      ],
+      "run": {
+        "id": "1rjr7me7vxpb5vpnj7d1j1a9wd",
+        "sessionId": "akn4ekd6ahcv4n2vm0en7znb34",
+        "threadId": "x6hf4jrk2qzh6v8c7vemx7jkb2",
+        "chatTitle": "This is an automated test. Read https://example.com and tell me the page's main ",
+        "channel": "web",
+        "prompt": "This is an automated test. Read https://example.com and tell me the page's main heading, exactly as written.",
+        "status": "ok",
+        "steps": 1,
+        "toolCalls": [
+          "read_page",
+          "web_search"
+        ],
+        "model": "opencode/opencode/big-pickle",
+        "route": {
+          "engine": "opencode",
+          "tier": "standard",
+          "by": "auto",
+          "why": "Standard tier, for a chat: opencode/big-pickle. On OpenCode, your default engine, which has room.",
+          "model": "opencode/big-pickle"
+        },
+        "totalTokens": 40290,
+        "usage": {
+          "inputTokens": 927,
+          "cachedInputTokens": 38656,
+          "outputTokens": 221,
+          "reasoningTokens": 486,
+          "totalTokens": 40290
+        },
+        "startedAt": 1791659682286,
+        "durationMs": 11606
+      },
+      "elapsedMs": 11645
+    }
+  ],
+  "logs": [],
+  "cleanupErrors": [],
+  "startedAt": "2026-10-10T19:14:42.265Z",
+  "durationMs": 11665
+}

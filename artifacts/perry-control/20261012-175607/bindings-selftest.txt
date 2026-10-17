@@ -1,0 +1,20 @@
+[32m✔[0m a three-step binding parses
+[32m✔[0m comments and blank lines are skipped
+[32m✔[0m an unknown verb is refused by line number
+[32m✔[0m a verb with nothing after it is refused
+[32m✔[0m an empty binding is refused
+[32m✔[0m a coordinate that is not a number is refused
+[32m✔[0m keys go to the app in front
+[32m✔[0m scroll takes a point from the pointer
+[32m
+All checks passed.[0m
+  [2mopen Safari[0m
+[2m    {"ok":true,"opened":"Safari.app"}[0m
+  [2mkey cmd+l[0m
+[2m    {"key":"cmd+l","ok":true}[0m
+  [2mtype example.com[0m
+[2m    {"ok":true,"to":12304,"typed":11}[0m
+  [2mkey return[0m
+[2m    {"key":"return","ok":true}[0m
+  [2msleep 800[0m
+[32mdemo: [2mnothing was posted[0m[0m

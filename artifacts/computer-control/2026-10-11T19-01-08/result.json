@@ -1,0 +1,42 @@
+{
+  "checks": {
+    "refusedWhenOff": true,
+    "refusedWithoutPet": true,
+    "fulfilsWithResult": false,
+    "moveAccepted": false
+  },
+  "notes": {
+    "chatId": "826bz1ktvdgmn8dnj2e05mcgph",
+    "refusedWhenOff": "The owner turned off letting you control the computer (Settings → Desktop pet). Tell them you'd like to use it.",
+    "refusedWithoutPet": "The desktop pet is not running. Ask the owner to turn it on (Settings → Desktop pet). Paste a screenshot if you need to work from one.",
+    "perryPet": "Perry on your desktop\n  Click him for your chats, to-dos and what needs you; drag him anywhere. Ctrl+Shift+Space talks to him.\n  He starts with your computer from now on; perry pet off stops that.\n  The first time he looks at your screen, macOS asks you to allow Electron (the app he runs in) to record it; restart him from his tray icon after.\n\n  ✔ Electron ready\n  ✔ on your screen",
+    "frontApp": {
+      "_id": "kw65d4h1qgf2kv7sfddss862rv",
+      "_creationTime": 1791725473869,
+      "conversationId": "826bz1ktvdgmn8dnj2e05mcgph",
+      "action": "front_app",
+      "args": {},
+      "why": "read the app in front",
+      "status": "failed",
+      "createdAt": 1791725473869,
+      "error": "Perry could not build the macOS input helper (swiftc). swiftc failed (1)"
+    },
+    "move": {
+      "_id": "eh1h4rxxvk52xm17ha37872sfa",
+      "_creationTime": 1791725474650,
+      "conversationId": "826bz1ktvdgmn8dnj2e05mcgph",
+      "action": "move",
+      "args": {
+        "x": 0.5,
+        "y": 0.5,
+        "why": "to the middle"
+      },
+      "why": "move to the middle",
+      "status": "failed",
+      "createdAt": 1791725474650,
+      "error": "Perry could not build the macOS input helper (swiftc). swiftc failed (1)"
+    }
+  },
+  "passed": false,
+  "error": "timed out: the click to reach the target"
+}

@@ -1,0 +1,139 @@
+{
+  "at": "2026-10-11T10:59:17.175Z",
+  "platform": "darwin",
+  "compile": {
+    "ok": true,
+    "status": 0,
+    "stderr": ""
+  },
+  "trusted": {
+    "ok": true,
+    "trusted": true,
+    "__hung": false,
+    "__code": 0,
+    "__stderr": ""
+  },
+  "displays": {
+    "displays": [
+      {
+        "height": 956,
+        "id": 1,
+        "originX": 0,
+        "originY": 0,
+        "scale": 2,
+        "width": 1470
+      }
+    ],
+    "mainHeight": 956,
+    "ok": true,
+    "__hung": false,
+    "__code": 0,
+    "__stderr": ""
+  },
+  "front": {
+    "front": {
+      "bundle": "com.apple.Terminal",
+      "name": "Terminal",
+      "pid": 1344,
+      "title": "Perry-upgraded — OC | Greeting — opencode ▸ perry-input — 100×58"
+    },
+    "ok": true,
+    "__hung": false,
+    "__code": 0,
+    "__stderr": ""
+  },
+  "element": {
+    "description": "shell",
+    "ok": true,
+    "role": "AXTextArea",
+    "subrole": "",
+    "title": "",
+    "value": "bhushan@bhushans-MacBook-Air Perry-upgraded % opencode\nStarting background server...\n+q4d73ppppppGi=31337,s=1,v=1,a=q,t=d,f=24;AAAA\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n ⠹ Greeting                      +                                                                                                        \n  ┃    58 -   const out = run(args);                                                                                                        ┃    57 + const json = (args: string[], timeoutMs = 20_000) => {                                     ing                                \n  ┃    58 +   const out = run(args, timeoutMs);                                                                                             ┃    59     // The helper prints JSON on stdout; take the last line that parses, so a stray          xt                                   ┃         diagnostic never breaks it.                                                                4 tokens                             ┃    60     const lines = out.stdout.split(\"\\n\").map((line) => line.trim()).filter(Boolean);         sed                                  ┃    61     for (let i = lines.length - 1; i >= 0; i -= 1) {                                                                              ┃    62       try { return { ...JSON.parse(lines[i]), __hung: out.hung, __code: out.code,                                                 ┃         __stderr: out.stderr } as Record<string, unknown>; } catch { /* next */ }                                                       ┃                                                                                                                                                                                                                                                                                   ┃                                                                                                 /                                       ┃  ← Edit artifacts/computer-control/spike/run.ts                                                                                         ┃                                                                                                                                       \n  ┃    67   // --- Compile -----------------------------------------------------------------                                                ┃    68                                                                                                                                   ┃    69   if (process.platform !== \"darwin\") throw new Error(\"the spike is macOS-only\");                                                  ┃    70   const compile = spawnSync(\"swiftc\", [\"-O\", SOURCE, \"-o\", BIN], { encoding: \"utf8\",                                              ┃         timeout: 180_000 });                                                                                                            ┃    71 - result.compile = { ok: compile.status === 0 && existsSync(BIN), status: compile.                                                ┃         status, stderr: (compile.stderr ?? \"\").trim().slice(0, 400) };                          5                                       ┃    72 - if (!result.compile.ok) {                                                                                                       ┃    71 + const compiled = compile.status === 0 && existsSync(BIN);                                                                       ┃    72 + result.compile = { ok: compiled, status: compile.status, stderr: (compile.stderr ??                                             ┃         \"\").trim().slice(0, 400) };                                                                                                     ┃    73 + if (!compiled) {                                                                                                                ┃    74     writeFileSync(resolve(outDir, \"result.json\"), JSON.stringify(result, null, 2));                                               ┃    75     throw new Error(`swiftc did not build the helper:\\n${(compile.stderr ?? \"\").trim()}                                           ┃         `);                                                                                                                             ┃    76   }                                                                                                                               ┃    77                                                                                                                                 \n  ┃                                                                                                                                                                                                                                                                                      + Thought · 1.4s                                                                                                                                                                                                                                                                 ┃                                                                                                                                         ┃  ⠸ cd /Users/bhushan/Life/Perry-upgraded                                                                                                ┃    echo \"== typecheck ==\"; pnpm typecheck 2>&1 | tail -15…                                                                              ┃                                                                                                                                       \n  ┃  == typecheck ==                                                                                d                                       ┃                                                                                                                                         ┃  > perry@0.1.0 typecheck /Users/bhushan/Life/Perry-upgraded                                                                             ┃  > tsc --noEmit                                                                                                                         ┃                                                                                                                                         ┃                                                                                                                                         ┃  == spike re-run after edits ==                                                                                                         ┃                                                                                                                                                                                                                                           (                                          Press ctrl+b to move running work to the background                                                                                  \n                                                                                                                                          \n  ┃                                                                                                                                       \n  ┃                                                                                                                                       \n  ┃                                                                                                                                       \n  ┃  Build · Big Pickle OpenCode Zen                                                                                                      \n  ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀  ▀                                     \n   ⬝⬝⬝⬝⬝⬝⬝⬝ esc interrupt                               ↓ 3 shells · 134.9K (67%)  ctrl+p commands  s  e/Perry-upgraded:main              \n                                                                                                                                          \n",
+    "__hung": false,
+    "__code": 0,
+    "__stderr": ""
+  },
+  "dry": {
+    "move": {
+      "moved": [
+        400,
+        300
+      ],
+      "ok": true,
+      "__hung": false,
+      "__code": 0,
+      "__stderr": "dry: mouse 5 at 400,300"
+    },
+    "click": {
+      "clicked": [
+        400,
+        300
+      ],
+      "ok": true,
+      "__hung": false,
+      "__code": 0,
+      "__stderr": "dry: mouse 5 at 400,300\ndry: click left 1 at 400,300\ndry: click left 2 at 400,300"
+    },
+    "drag": {
+      "dragged": true,
+      "ok": true,
+      "__hung": false,
+      "__code": 0,
+      "__stderr": "dry: drag 100,100 -> 300,300"
+    },
+    "scroll": {
+      "ok": true,
+      "scrolled": true,
+      "__hung": false,
+      "__code": 0,
+      "__stderr": "dry: mouse 5 at 400,300\ndry: scroll dy=120 dx=0 at 400,300"
+    },
+    "type": {
+      "ok": true,
+      "typed": 12,
+      "__hung": false,
+      "__code": 0,
+      "__stderr": "dry: type 12 chars"
+    },
+    "key": {
+      "key": "cmd+s",
+      "ok": true,
+      "__hung": false,
+      "__code": 0,
+      "__stderr": "dry: key cmd+s"
+    }
+  },
+  "selftest": {
+    "appActive": true,
+    "clicked": true,
+    "firstResponderIsTextView": true,
+    "globalReceived": "perry-spike-OK-16359",
+    "keyWindowAfter": true,
+    "keyWindowBefore": true,
+    "marker": "perry-spike-OK-16359",
+    "movedTo": [
+      230,
+      878
+    ],
+    "ok": true,
+    "pidReceived": "perry-spike-OK-16359",
+    "screenPoint": [
+      230,
+      878
+    ],
+    "trusted": true,
+    "__hung": false,
+    "__code": 0,
+    "__stderr": ""
+  },
+  "checks": {
+    "compiles": true,
+    "displaysReported": true,
+    "frontAppReadable": true,
+    "elementReadReturns": true,
+    "everyEventConstructs": true,
+    "selftestHonest": true
+  },
+  "passed": true,
+  "realInputProven": true
+}

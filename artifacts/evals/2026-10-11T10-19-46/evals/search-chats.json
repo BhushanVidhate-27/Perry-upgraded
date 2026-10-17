@@ -1,0 +1,119 @@
+{
+  "id": "search-chats",
+  "description": "Finds something said in an earlier chat with search_chats.",
+  "tags": [
+    "tools",
+    "chats"
+  ],
+  "verdict": "passed",
+  "assertions": [
+    {
+      "name": "notCalledTool(remember)",
+      "score": 1,
+      "severity": "soft",
+      "passed": true,
+      "errored": false
+    },
+    {
+      "name": "calledTool(search_chats)",
+      "score": 1,
+      "severity": "gate",
+      "passed": true,
+      "errored": false,
+      "metadata": {
+        "calls": 1
+      }
+    },
+    {
+      "name": "includes(Mifadove)",
+      "score": 1,
+      "severity": "gate",
+      "passed": true,
+      "errored": false
+    }
+  ],
+  "turns": [
+    {
+      "chatId": "xyyw5ka5pvnjtv9t5sp1wyvywe",
+      "prompt": "This is an automated test. Don't save anything to memory. The codeword for this test is Mifadove. Reply with just OK.",
+      "message": "OK",
+      "toolCalls": [],
+      "run": {
+        "id": "1cmr187wysme0m93gn2sqjq2et",
+        "sessionId": "xyyw5ka5pvnjtv9t5sp1wyvywe",
+        "threadId": "twsh7zm94nqpfet8616d0qsrfw",
+        "chatTitle": "This is an automated test. Don't save anything to memory. The codeword for this ",
+        "channel": "web",
+        "prompt": "This is an automated test. Don't save anything to memory. The codeword for this test is Mifadove. Reply with just OK.",
+        "status": "ok",
+        "steps": 1,
+        "toolCalls": [],
+        "model": "opencode/opencode/big-pickle",
+        "route": {
+          "engine": "opencode",
+          "tier": "standard",
+          "by": "auto",
+          "why": "Standard tier, for a chat: opencode/big-pickle. On OpenCode, your default engine, which has room.",
+          "model": "opencode/big-pickle"
+        },
+        "totalTokens": 13359,
+        "usage": {
+          "inputTokens": 528,
+          "cachedInputTokens": 12416,
+          "outputTokens": 2,
+          "reasoningTokens": 413,
+          "totalTokens": 13359
+        },
+        "startedAt": 1791714069730,
+        "durationMs": 5225
+      },
+      "elapsedMs": 5247
+    },
+    {
+      "chatId": "91vewxtwc273hmmf9njqhdqnmz",
+      "prompt": "This is an automated test. In an earlier chat I told you the codeword for this test. Search our earlier chats for it and reply with just the codeword.",
+      "message": "Mifadove",
+      "toolCalls": [
+        "execute",
+        "search_chats"
+      ],
+      "run": {
+        "id": "n6es9m2pkzzeaeejemsc539w44",
+        "sessionId": "91vewxtwc273hmmf9njqhdqnmz",
+        "threadId": "3dcnv9576bppfv40p5h40ajq7w",
+        "chatTitle": "This is an automated test. In an earlier chat I told you the codeword for this t",
+        "channel": "web",
+        "prompt": "This is an automated test. In an earlier chat I told you the codeword for this test. Search our earlier chats for it and reply with just the codeword.",
+        "status": "ok",
+        "steps": 1,
+        "toolCalls": [
+          "execute",
+          "search_chats"
+        ],
+        "model": "opencode/opencode/big-pickle",
+        "route": {
+          "engine": "opencode",
+          "tier": "standard",
+          "by": "auto",
+          "why": "Standard tier, for a chat: opencode/big-pickle. On OpenCode, your default engine, which has room.",
+          "model": "opencode/big-pickle"
+        },
+        "totalTokens": 45060,
+        "usage": {
+          "inputTokens": 3676,
+          "cachedInputTokens": 40960,
+          "outputTokens": 142,
+          "reasoningTokens": 282,
+          "totalTokens": 45060
+        },
+        "startedAt": 1791714074993,
+        "durationMs": 8169
+      },
+      "elapsedMs": 8201
+    }
+  ],
+  "logs": [],
+  "cleanupErrors": [],
+  "startedAt": "2026-10-11T10:21:09.712Z",
+  "durationMs": 13507
+}

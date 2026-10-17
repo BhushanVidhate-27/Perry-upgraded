@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Perry computer-control target</title>
+<style>
+  html, body { height: 100%; margin: 0; }
+  body {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+    font: 16px/1.5 system-ui, sans-serif; padding: 24px; box-sizing: border-box;
+  }
+  h1 { font-size: 20px; margin: 0; }
+  p { margin: 0; color: #555; }
+  /* Big and centred on purpose: a click at the middle of the screen (0.5, 0.5) lands inside it,
+     so the click focuses it and the typing that follows reaches it. */
+  #box { width: 92%; height: 58%; border: 2px solid #333; padding: 10px; outline: none; overflow: auto; }
+</style>
+<h1>Target window</h1>
+<p>Everything clicked and typed here is written to the run's log.</p>
+<div id="box" contenteditable="true"></div>
+<script>document.getElementById("box").focus();</script>

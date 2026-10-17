@@ -1,0 +1,6 @@
+{
+  "checks": {},
+  "notes": {},
+  "passed": false,
+  "error": "The pet's Electron is not installed yet (run `perry pet` once)."
+}

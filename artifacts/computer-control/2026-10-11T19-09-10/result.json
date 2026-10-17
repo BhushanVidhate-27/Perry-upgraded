@@ -1,0 +1,100 @@
+{
+  "checks": {
+    "refusedWhenOff": true,
+    "refusedWithoutPet": true,
+    "fulfilsWithResult": true,
+    "moveAccepted": true,
+    "clickReachesTarget": true,
+    "typeReachesTarget": false,
+    "elementRead": true,
+    "badPointRefused": false
+  },
+  "notes": {
+    "chatId": "zgny96y23cjg3w4hh5vd934d6k",
+    "refusedWhenOff": "The owner turned off letting you control the computer (Settings → Desktop pet). Tell them you'd like to use it.",
+    "refusedWithoutPet": "The desktop pet is not running. Ask the owner to turn it on (Settings → Desktop pet). Paste a screenshot if you need to work from one.",
+    "perryPet": "Perry on your desktop\n  Click him for your chats, to-dos and what needs you; drag him anywhere. Ctrl+Shift+Space talks to him.\n  He starts with your computer from now on; perry pet off stops that.\n  The first time he looks at your screen, macOS asks you to allow Electron (the app he runs in) to record it; restart him from his tray icon after.\n\n  ✔ Electron ready\n  ✔ on your screen",
+    "frontApp": {
+      "_id": "z0amjjm725jef98qpv48kfbvy7",
+      "_creationTime": 1791725954353,
+      "conversationId": "zgny96y23cjg3w4hh5vd934d6k",
+      "action": "front_app",
+      "args": {},
+      "why": "read the app in front",
+      "status": "done",
+      "createdAt": 1791725954353,
+      "result": {
+        "front": {
+          "bundle": "com.github.Electron",
+          "name": "Electron",
+          "pid": 7072,
+          "title": "Perry computer-control target"
+        },
+        "ok": true
+      }
+    },
+    "move": {
+      "_id": "aem8v3jzfg2chmnyx9t1ktpsra",
+      "_creationTime": 1791725958932,
+      "conversationId": "zgny96y23cjg3w4hh5vd934d6k",
+      "action": "move",
+      "args": {
+        "x": 0.5,
+        "y": 0.5,
+        "why": "to the middle"
+      },
+      "why": "move to the middle",
+      "status": "done",
+      "createdAt": 1791725958932,
+      "result": {
+        "moved": [
+          735,
+          478
+        ],
+        "ok": true
+      }
+    },
+    "targetLog": "focusin\nready\nclick\nkey p\nkey e\nkey r\nkey r\nkey y\nkey -\nkey c\nkey o\nkey m\nkey p\nkey u\nkey t\nkey e\nkey r\nkey -\nkey m\nkey v\nkey 3\nkey v\nkey d\nkey b\nkey d\nkey w\n",
+    "type": {
+      "_id": "jcctktvb7ka8h1nzazt2vhercd",
+      "_creationTime": 1791725960643,
+      "conversationId": "zgny96y23cjg3w4hh5vd934d6k",
+      "action": "type",
+      "args": {
+        "text": "perry-computer-mv3vdbdw",
+        "why": "type the marker"
+      },
+      "why": "type the marker",
+      "status": "done",
+      "createdAt": 1791725960643,
+      "result": {
+        "ok": true,
+        "typed": 23
+      }
+    },
+    "elementAt": {
+      "_id": "my2vd55h9cw5dky6s0h3nhyzd1",
+      "_creationTime": 1791725975968,
+      "conversationId": "zgny96y23cjg3w4hh5vd934d6k",
+      "action": "element_at",
+      "args": {
+        "x": 0.5,
+        "y": 0.5,
+        "why": "what is there"
+      },
+      "why": "what is there",
+      "status": "done",
+      "createdAt": 1791725975968,
+      "result": {
+        "ok": true,
+        "role": "AXScrollArea",
+        "subrole": "",
+        "title": ""
+      }
+    },
+    "petState": true,
+    "targetOutput": "",
+    "serverTail": "▲ Next.js 16.3.6\n- Local:         http://localhost:56875\n- Network:       http://10.113.186.110:56875\n✓ Ready in 148ms\n✓ Running next.config.ts took 83ms\n[perry] connected this computer (bhushans-MacBook-Air.local) to the local backend\n[perry] backend ready: 574 functions, data in /var/folders/1s/0lqwftln04zfd9zjt04j84t00000gn/T/perry-computer-DXcVTG\n(node:7059) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n[perry] Telegram: polling for messages\nturn failed: Sign in to an engine in Settings → Engines and start Perry's runner (perry start) to chat.\n"
+  },
+  "passed": false
+}

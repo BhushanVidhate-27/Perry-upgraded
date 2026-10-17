@@ -1,0 +1,119 @@
+{
+  "id": "search-chats",
+  "description": "Finds something said in an earlier chat with search_chats.",
+  "tags": [
+    "tools",
+    "chats"
+  ],
+  "verdict": "passed",
+  "assertions": [
+    {
+      "name": "notCalledTool(remember)",
+      "score": 1,
+      "severity": "soft",
+      "passed": true,
+      "errored": false
+    },
+    {
+      "name": "calledTool(search_chats)",
+      "score": 1,
+      "severity": "gate",
+      "passed": true,
+      "errored": false,
+      "metadata": {
+        "calls": 1
+      }
+    },
+    {
+      "name": "includes(Turadove)",
+      "score": 1,
+      "severity": "gate",
+      "passed": true,
+      "errored": false
+    }
+  ],
+  "turns": [
+    {
+      "chatId": "ddhzbby4kk58ex1xvds2hwfsrm",
+      "prompt": "This is an automated test. Don't save anything to memory. The codeword for this test is Turadove. Reply with just OK.",
+      "message": "OK\n\nTuradove",
+      "toolCalls": [],
+      "run": {
+        "id": "4k5nqmzrjx660mnqtmf3xqjtkv",
+        "sessionId": "ddhzbby4kk58ex1xvds2hwfsrm",
+        "threadId": "asffpwp5m0kr404cz2qva9cbhw",
+        "chatTitle": "This is an automated test. Don't save anything to memory. The codeword for this ",
+        "channel": "web",
+        "prompt": "This is an automated test. Don't save anything to memory. The codeword for this test is Turadove. Reply with just OK.",
+        "status": "ok",
+        "steps": 1,
+        "toolCalls": [],
+        "model": "opencode/opencode/big-pickle",
+        "route": {
+          "engine": "opencode",
+          "tier": "standard",
+          "by": "auto",
+          "why": "Standard tier, for a chat: opencode/big-pickle. On OpenCode, your default engine, which has room.",
+          "model": "opencode/big-pickle"
+        },
+        "totalTokens": 13025,
+        "usage": {
+          "inputTokens": 568,
+          "cachedInputTokens": 12416,
+          "outputTokens": 6,
+          "reasoningTokens": 35,
+          "totalTokens": 13025
+        },
+        "startedAt": 1791660846454,
+        "durationMs": 2104
+      },
+      "elapsedMs": 2130
+    },
+    {
+      "chatId": "nwh9cfg7s98t2ha3xfmnyp69yy",
+      "prompt": "This is an automated test. In an earlier chat I told you the codeword for this test. Search our earlier chats for it and reply with just the codeword.",
+      "message": "Turadove.",
+      "toolCalls": [
+        "execute",
+        "search_chats"
+      ],
+      "run": {
+        "id": "ka9xsg625fzyh1ppxt09fxqvkz",
+        "sessionId": "nwh9cfg7s98t2ha3xfmnyp69yy",
+        "threadId": "vt9exngch2bxw4f99cwprpqx33",
+        "chatTitle": "This is an automated test. In an earlier chat I told you the codeword for this t",
+        "channel": "web",
+        "prompt": "This is an automated test. In an earlier chat I told you the codeword for this test. Search our earlier chats for it and reply with just the codeword.",
+        "status": "ok",
+        "steps": 1,
+        "toolCalls": [
+          "execute",
+          "search_chats"
+        ],
+        "model": "opencode/opencode/big-pickle",
+        "route": {
+          "engine": "opencode",
+          "tier": "standard",
+          "by": "auto",
+          "why": "Standard tier, for a chat: opencode/big-pickle. On OpenCode, your default engine, which has room.",
+          "model": "opencode/big-pickle"
+        },
+        "totalTokens": 46278,
+        "usage": {
+          "inputTokens": 3911,
+          "cachedInputTokens": 41600,
+          "outputTokens": 274,
+          "reasoningTokens": 493,
+          "totalTokens": 46278
+        },
+        "startedAt": 1791660848595,
+        "durationMs": 9811
+      },
+      "elapsedMs": 9835
+    }
+  ],
+  "logs": [],
+  "cleanupErrors": [],
+  "startedAt": "2026-10-10T19:34:06.438Z",
+  "durationMs": 12027
+}

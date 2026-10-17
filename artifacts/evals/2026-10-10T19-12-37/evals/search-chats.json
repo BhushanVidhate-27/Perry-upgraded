@@ -1,0 +1,117 @@
+{
+  "id": "search-chats",
+  "description": "Finds something said in an earlier chat with search_chats.",
+  "tags": [
+    "tools",
+    "chats"
+  ],
+  "verdict": "failed",
+  "assertions": [
+    {
+      "name": "notCalledTool(remember)",
+      "score": 1,
+      "severity": "soft",
+      "passed": true,
+      "errored": false
+    },
+    {
+      "name": "calledTool(search_chats)",
+      "score": 0,
+      "severity": "gate",
+      "passed": false,
+      "errored": false,
+      "message": "expected a call to \"search_chats\"; observed tools: [execute, execute]"
+    },
+    {
+      "name": "includes(Vezopesu)",
+      "score": 1,
+      "severity": "gate",
+      "passed": true,
+      "errored": false
+    }
+  ],
+  "turns": [
+    {
+      "chatId": "nyh365zaxcw38papav5ag3prqq",
+      "prompt": "This is an automated test. Don't save anything to memory. The codeword for this test is Vezopesu. Reply with just OK.",
+      "message": "OK",
+      "toolCalls": [],
+      "run": {
+        "id": "3g5889h9j69k50xz0yf85bkwfb",
+        "sessionId": "nyh365zaxcw38papav5ag3prqq",
+        "threadId": "j52rq37brb8p5x0vk943q5w3ne",
+        "chatTitle": "This is an automated test. Don't save anything to memory. The codeword for this ",
+        "channel": "web",
+        "prompt": "This is an automated test. Don't save anything to memory. The codeword for this test is Vezopesu. Reply with just OK.",
+        "status": "ok",
+        "steps": 1,
+        "toolCalls": [],
+        "model": "opencode/opencode/big-pickle",
+        "route": {
+          "engine": "opencode",
+          "tier": "standard",
+          "by": "auto",
+          "why": "Standard tier, for a chat: opencode/big-pickle. On OpenCode, your default engine, which has room.",
+          "model": "opencode/big-pickle"
+        },
+        "totalTokens": 13044,
+        "usage": {
+          "inputTokens": 453,
+          "cachedInputTokens": 12416,
+          "outputTokens": 2,
+          "reasoningTokens": 173,
+          "totalTokens": 13044
+        },
+        "startedAt": 1791659718704,
+        "durationMs": 3773
+      },
+      "elapsedMs": 3795
+    },
+    {
+      "chatId": "e5y16r493g55yap11ee4krc7ta",
+      "prompt": "This is an automated test. In an earlier chat I told you the codeword for this test. Search our earlier chats for it and reply with just the codeword.",
+      "message": "Vezopesu",
+      "toolCalls": [
+        "execute",
+        "execute"
+      ],
+      "run": {
+        "id": "sy9n9a5m04d3gk80g62fyz2rw0",
+        "sessionId": "e5y16r493g55yap11ee4krc7ta",
+        "threadId": "574f9thfds94q5ajec2bg3az3w",
+        "chatTitle": "This is an automated test. In an earlier chat I told you the codeword for this t",
+        "channel": "web",
+        "prompt": "This is an automated test. In an earlier chat I told you the codeword for this test. Search our earlier chats for it and reply with just the codeword.",
+        "status": "ok",
+        "steps": 1,
+        "toolCalls": [
+          "execute",
+          "execute"
+        ],
+        "model": "opencode/opencode/big-pickle",
+        "route": {
+          "engine": "opencode",
+          "tier": "standard",
+          "by": "auto",
+          "why": "Standard tier, for a chat: opencode/big-pickle. On OpenCode, your default engine, which has room.",
+          "model": "opencode/big-pickle"
+        },
+        "totalTokens": 46582,
+        "usage": {
+          "inputTokens": 3924,
+          "cachedInputTokens": 41472,
+          "outputTokens": 215,
+          "reasoningTokens": 971,
+          "totalTokens": 46582
+        },
+        "startedAt": 1791659722516,
+        "durationMs": 15939
+      },
+      "elapsedMs": 15970
+    }
+  ],
+  "logs": [],
+  "cleanupErrors": [],
+  "startedAt": "2026-10-10T19:15:18.695Z",
+  "durationMs": 19816
+}

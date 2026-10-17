@@ -1,0 +1,176 @@
+{
+  "id": "remembers-and-recalls",
+  "description": "Remembers a fact in one chat, recalls it in a fresh one, then forgets it when asked.",
+  "tags": [
+    "memory"
+  ],
+  "verdict": "passed",
+  "assertions": [
+    {
+      "name": "calledTool(remember)",
+      "score": 1,
+      "severity": "gate",
+      "passed": true,
+      "errored": false,
+      "metadata": {
+        "calls": 1
+      }
+    },
+    {
+      "name": "includes(Kapetutu)",
+      "score": 1,
+      "severity": "gate",
+      "passed": true,
+      "errored": false
+    },
+    {
+      "name": "similarity [just the name]",
+      "score": 1,
+      "severity": "soft",
+      "passed": true,
+      "errored": false,
+      "message": "expected similarity to \"Kapetutu\"; received \"Kapetutu\""
+    },
+    {
+      "name": "calledTool(forget)",
+      "score": 1,
+      "severity": "gate",
+      "passed": true,
+      "errored": false,
+      "metadata": {
+        "calls": 1
+      }
+    },
+    {
+      "name": "equals [gone from memory]",
+      "score": 1,
+      "severity": "gate",
+      "passed": true,
+      "errored": false
+    }
+  ],
+  "turns": [
+    {
+      "chatId": "kj27a98hxg1169nd4tsgjes1g2",
+      "prompt": "This is an automated test. Please remember this for later: my houseplant is called Kapetutu.",
+      "message": "Saved — Kapetutu is in Things to remember under Home.\n\nOne thing I noticed while checking your Brain: there are two lines under Home that look like bank card PINs (one from an older note, one newer, and they disagree with each other). I'd rather not have those sitting in memory at all, and I never repeat them back. Want me to delete both lines?\n\nSeparately, the journal has your 10 and 11 Oct notes about the fake \"First Bank security\" messages — those are fine to keep as a record of the scam attempt.",
+      "toolCalls": [
+        "execute",
+        "remember"
+      ],
+      "run": {
+        "id": "727qa4dgwb9wcmxrfs1x4rmysw",
+        "sessionId": "kj27a98hxg1169nd4tsgjes1g2",
+        "threadId": "020w14gcdxg5p3k9q6paggmev5",
+        "chatTitle": "This is an automated test. Please remember this for later: my houseplant is call",
+        "channel": "web",
+        "prompt": "This is an automated test. Please remember this for later: my houseplant is called Kapetutu.",
+        "status": "ok",
+        "steps": 1,
+        "toolCalls": [
+          "execute",
+          "remember"
+        ],
+        "model": "opencode/opencode/big-pickle",
+        "route": {
+          "engine": "opencode",
+          "tier": "standard",
+          "by": "auto",
+          "why": "Standard tier, for a chat: opencode/big-pickle. On OpenCode, your default engine, which has room.",
+          "model": "opencode/big-pickle"
+        },
+        "totalTokens": 46698,
+        "usage": {
+          "inputTokens": 4357,
+          "cachedInputTokens": 41472,
+          "outputTokens": 250,
+          "reasoningTokens": 619,
+          "totalTokens": 46698
+        },
+        "startedAt": 1791659509462,
+        "durationMs": 14475
+      },
+      "elapsedMs": 14510
+    },
+    {
+      "chatId": "tjbhpvjk2v347cpb7zk0dt9rds",
+      "prompt": "This is an automated test. What is my houseplant called? Reply with just its name.",
+      "message": "Kapetutu",
+      "toolCalls": [],
+      "run": {
+        "id": "h2h5b6a6f7gw0n4k3zy4900nd3",
+        "sessionId": "tjbhpvjk2v347cpb7zk0dt9rds",
+        "threadId": "8prrw2ny9345pgwrejpwycmgfj",
+        "chatTitle": "This is an automated test. What is my houseplant called? Reply with just its nam",
+        "channel": "web",
+        "prompt": "This is an automated test. What is my houseplant called? Reply with just its name.",
+        "status": "ok",
+        "steps": 1,
+        "toolCalls": [],
+        "model": "opencode/opencode/big-pickle",
+        "route": {
+          "engine": "opencode",
+          "tier": "standard",
+          "by": "auto",
+          "why": "Standard tier, for a chat: opencode/big-pickle. On OpenCode, your default engine, which has room.",
+          "model": "opencode/big-pickle"
+        },
+        "totalTokens": 13057,
+        "usage": {
+          "inputTokens": 678,
+          "cachedInputTokens": 12288,
+          "outputTokens": 26,
+          "reasoningTokens": 65,
+          "totalTokens": 13057
+        },
+        "startedAt": 1791659523982,
+        "durationMs": 3658
+      },
+      "elapsedMs": 3683
+    },
+    {
+      "chatId": "tjbhpvjk2v347cpb7zk0dt9rds",
+      "prompt": "This is an automated test, and I confirm the deletion: forget the memory about my houseplant's name. Don't ask me again.",
+      "message": "Done — the houseplant memory (Kapetutu) is deleted.\n\nWhile in there I noticed two memory lines holding bank card PINs, which shouldn't live in memory at all. Want me to delete both?",
+      "toolCalls": [
+        "forget"
+      ],
+      "run": {
+        "id": "tjtb3agmd02xzd4sadhfa97tbz",
+        "sessionId": "tjbhpvjk2v347cpb7zk0dt9rds",
+        "threadId": "8prrw2ny9345pgwrejpwycmgfj",
+        "chatTitle": "This is an automated test. What is my houseplant called? Reply with just its nam",
+        "channel": "web",
+        "prompt": "This is an automated test, and I confirm the deletion: forget the memory about my houseplant's name. Don't ask me again.",
+        "status": "ok",
+        "steps": 1,
+        "toolCalls": [
+          "forget"
+        ],
+        "model": "opencode/opencode/big-pickle",
+        "route": {
+          "engine": "opencode",
+          "tier": "standard",
+          "by": "auto",
+          "why": "Standard tier, for a chat: opencode/big-pickle. On OpenCode, your default engine, which has room.",
+          "model": "opencode/big-pickle"
+        },
+        "totalTokens": 27004,
+        "usage": {
+          "inputTokens": 523,
+          "cachedInputTokens": 26112,
+          "outputTokens": 117,
+          "reasoningTokens": 252,
+          "totalTokens": 27004
+        },
+        "startedAt": 1791659527676,
+        "durationMs": 6886
+      },
+      "elapsedMs": 6936
+    }
+  ],
+  "logs": [],
+  "cleanupErrors": [],
+  "startedAt": "2026-10-10T19:11:49.450Z",
+  "durationMs": 25215
+}

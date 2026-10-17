@@ -1,0 +1,26 @@
+# Perry's link reader, in the cloud. Deploy from this folder: `pnpm deploy`.
+# See README.md for the one-time setup (R2 bucket, secret, dashboard keys).
+
+name = "perry-read-link"
+main = "src/index.ts"
+# Keep in step with the Worker runtime you deploy against.
+compatibility_date = "2026-10-10"
+
+# Workers AI, for Whisper. Free daily allowance.
+[ai]
+binding = "AI"
+
+# Where every downloaded file is kept (the actual media, not just metadata).
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "perry-link-media"
+
+[vars]
+# A cobalt instance to resolve links with. The public instance applies bot
+# protection and is not intended for third-party use, so point this at your own
+# publicly reachable cobalt 11 instance (a Worker cannot reach localhost).
+COBALT_URL = "https://api.cobalt.tools"
+
+# Set at deploy time, never here:
+#   wrangler secret put PIPELINE_TOKEN   the shared secret Perry sends
+#   wrangler secret put COBALT_API_KEY   only if your cobalt instance wants a key

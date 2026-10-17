@@ -1,0 +1,172 @@
+{
+  "id": "remembers-and-recalls",
+  "description": "Remembers a fact in one chat, recalls it in a fresh one, then forgets it when asked.",
+  "tags": [
+    "memory"
+  ],
+  "verdict": "failed",
+  "assertions": [
+    {
+      "name": "calledTool(remember)",
+      "score": 1,
+      "severity": "gate",
+      "passed": true,
+      "errored": false,
+      "metadata": {
+        "calls": 1
+      }
+    },
+    {
+      "name": "includes(Nisusuve)",
+      "score": 1,
+      "severity": "gate",
+      "passed": true,
+      "errored": false
+    },
+    {
+      "name": "similarity [just the name]",
+      "score": 1,
+      "severity": "soft",
+      "passed": true,
+      "errored": false,
+      "message": "expected similarity to \"Nisusuve\"; received \"Nisusuve\""
+    },
+    {
+      "name": "calledTool(forget)",
+      "score": 0,
+      "severity": "gate",
+      "passed": false,
+      "errored": false,
+      "message": "expected a call to \"forget\"; observed tools: [execute]"
+    },
+    {
+      "name": "equals [gone from memory]",
+      "score": 1,
+      "severity": "gate",
+      "passed": true,
+      "errored": false
+    }
+  ],
+  "turns": [
+    {
+      "chatId": "td9jtg9afvb4ht606sg5ft9v0f",
+      "prompt": "This is an automated test. Please remember this for later: my houseplant is called Nisusuve.",
+      "message": "Saved — your houseplant is called **Nisusuve**, remembered under Home so I'll know it in any chat.\n\nOne thing I spotted while saving: there are two lines in your Brain holding **bank card PINs**, which really shouldn't live in memory. I don't want to touch them without your say-so — want me to delete both lines from Things to remember? (I won't copy them anywhere else either way.)",
+      "toolCalls": [
+        "remember"
+      ],
+      "run": {
+        "id": "yxkfa19v3z3rrfgb4b59c6m3jc",
+        "sessionId": "td9jtg9afvb4ht606sg5ft9v0f",
+        "threadId": "edfc16vn881m94k8bsxq58ygy4",
+        "chatTitle": "This is an automated test. Please remember this for later: my houseplant is call",
+        "channel": "web",
+        "prompt": "This is an automated test. Please remember this for later: my houseplant is called Nisusuve.",
+        "status": "ok",
+        "steps": 1,
+        "toolCalls": [
+          "remember"
+        ],
+        "model": "opencode/opencode/big-pickle",
+        "route": {
+          "engine": "opencode",
+          "tier": "standard",
+          "by": "auto",
+          "why": "Standard tier, for a chat: opencode/big-pickle. On OpenCode, your default engine, which has room.",
+          "model": "opencode/big-pickle"
+        },
+        "totalTokens": 26743,
+        "usage": {
+          "inputTokens": 968,
+          "cachedInputTokens": 24960,
+          "outputTokens": 167,
+          "reasoningTokens": 648,
+          "totalTokens": 26743
+        },
+        "startedAt": 1791655453132,
+        "durationMs": 11904
+      },
+      "elapsedMs": 11939
+    },
+    {
+      "chatId": "dbvemk24mkw8fdjndmmcghxeyn",
+      "prompt": "This is an automated test. What is my houseplant called? Reply with just its name.",
+      "message": "Nisusuve",
+      "toolCalls": [],
+      "run": {
+        "id": "fer2hwnkcgtz7f3pxg76j5vaxz",
+        "sessionId": "dbvemk24mkw8fdjndmmcghxeyn",
+        "threadId": "3y187n1ypefqvzq7d512zk5bee",
+        "chatTitle": "This is an automated test. What is my houseplant called? Reply with just its nam",
+        "channel": "web",
+        "prompt": "This is an automated test. What is my houseplant called? Reply with just its name.",
+        "status": "ok",
+        "steps": 1,
+        "toolCalls": [],
+        "model": "opencode/opencode/big-pickle",
+        "route": {
+          "engine": "opencode",
+          "tier": "standard",
+          "by": "auto",
+          "why": "Standard tier, for a chat: opencode/big-pickle. On OpenCode, your default engine, which has room.",
+          "model": "opencode/big-pickle"
+        },
+        "totalTokens": 12881,
+        "usage": {
+          "inputTokens": 506,
+          "cachedInputTokens": 12288,
+          "outputTokens": 26,
+          "reasoningTokens": 61,
+          "totalTokens": 12881
+        },
+        "startedAt": 1791655465078,
+        "durationMs": 3158
+      },
+      "elapsedMs": 3184
+    },
+    {
+      "chatId": "dbvemk24mkw8fdjndmmcghxeyn",
+      "prompt": "This is an automated test, and I confirm the deletion: forget the memory about my houseplant's name. Don't ask me again.",
+      "message": "Done — I've deleted the memory about your houseplant's name. It's gone.",
+      "toolCalls": [
+        "execute"
+      ],
+      "run": {
+        "id": "68t8a7zztj9c04pkskxn15p9px",
+        "sessionId": "dbvemk24mkw8fdjndmmcghxeyn",
+        "threadId": "3y187n1ypefqvzq7d512zk5bee",
+        "chatTitle": "This is an automated test. What is my houseplant called? Reply with just its nam",
+        "channel": "web",
+        "prompt": "This is an automated test, and I confirm the deletion: forget the memory about my houseplant's name. Don't ask me again.",
+        "status": "ok",
+        "steps": 1,
+        "toolCalls": [
+          "execute"
+        ],
+        "model": "opencode/opencode/big-pickle",
+        "route": {
+          "engine": "opencode",
+          "tier": "standard",
+          "by": "auto",
+          "why": "Standard tier, for a chat: opencode/big-pickle. On OpenCode, your default engine, which has room.",
+          "model": "opencode/big-pickle"
+        },
+        "totalTokens": 26520,
+        "usage": {
+          "inputTokens": 702,
+          "cachedInputTokens": 25600,
+          "outputTokens": 86,
+          "reasoningTokens": 132,
+          "totalTokens": 26520
+        },
+        "startedAt": 1791655468279,
+        "durationMs": 5042
+      },
+      "elapsedMs": 5068
+    }
+  ],
+  "logs": [],
+  "cleanupErrors": [],
+  "startedAt": "2026-10-10T18:04:13.110Z",
+  "durationMs": 20277
+}

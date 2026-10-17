@@ -1,0 +1,82 @@
+{
+  "id": "markdown-answer",
+  "description": "Answers a comparison in clean Markdown that the chat can render.",
+  "tags": [
+    "style"
+  ],
+  "verdict": "failed",
+  "assertions": [
+    {
+      "name": "includes(/^\\s*\\|?\\s*:?-{3,}:?\\s*\\|/m) [table separator row]",
+      "score": 1,
+      "severity": "gate",
+      "passed": true,
+      "errored": false
+    },
+    {
+      "name": "includes(/^\\s*[-*] \\S/m) [bulleted list]",
+      "score": 1,
+      "severity": "gate",
+      "passed": true,
+      "errored": false
+    },
+    {
+      "name": "judge",
+      "score": 0.2,
+      "severity": "gate",
+      "threshold": 0.7,
+      "passed": false,
+      "errored": false,
+      "message": "The tips are correctly bulleted, but the reply includes a filler preamble and trailing prose, and the table is transposed with one row per drink instead of one row per aspect.",
+      "metadata": {
+        "criteria": "The reply is well-formed Markdown: a table with a header row, a separator row and one row per aspect (caffeine, taste, price), followed by a bulleted list of two tips, with no filler preamble or sign-off.",
+        "judgment": {
+          "probability": 0.2,
+          "reason": "The tips are correctly bulleted, but the reply includes a filler preamble and trailing prose, and the table is transposed with one row per drink instead of one row per aspect."
+        }
+      }
+    }
+  ],
+  "turns": [
+    {
+      "chatId": "5sssns8xgjhn9d51f8teq58j15",
+      "prompt": "This is an automated test. Compare tea and coffee on caffeine, taste and price in a Markdown table, then give two tips as a bulleted list.",
+      "message": "Tea is the gentler, cheaper sip; coffee hits harder on caffeine but costs more. Here's the breakdown:\n\n| | Caffeine (per 8 oz) | Taste | Price (per cup, homemade) |\n|---|---|---|---|\n| **Tea** | ~30–50 mg | Lighter, tannic, floral/green to malty black; varies a lot by type | ~$0.10–0.30 |\n| **Coffee** | ~95 mg (drip) | Richer, roasted, bitter-to-sweet; bolder and more consistent | ~$0.20–0.60 |\n\nCafé prices flip the gap wider — a coffee out is usually 2–4× a tea.\n\n- **Steep tea at the right heat (green ~80°C, black ~95°C) and don't over-steep** — most \"bitter tea\" is really just burnt leaves, same as scorched coffee.\n- **Cut caffeine after ~2 pm** — coffee's ~95 mg lingers 5–6 hours, so it can quietly wreck your sleep even when you feel fine at night. (Unless you're the lucky type who sleeps through anything.)",
+      "toolCalls": [],
+      "run": {
+        "id": "skgf9d2qbemws3b151ax3vsh22",
+        "sessionId": "5sssns8xgjhn9d51f8teq58j15",
+        "threadId": "2yc796rhbh7ntda27hgbg5p89h",
+        "chatTitle": "This is an automated test. Compare tea and coffee on caffeine, taste and price i",
+        "channel": "web",
+        "prompt": "This is an automated test. Compare tea and coffee on caffeine, taste and price in a Markdown table, then give two tips as a bulleted list.",
+        "status": "ok",
+        "steps": 1,
+        "toolCalls": [],
+        "model": "opencode/opencode/big-pickle",
+        "route": {
+          "engine": "opencode",
+          "tier": "standard",
+          "by": "auto",
+          "why": "Standard tier, for a chat: opencode/big-pickle. On OpenCode, your default engine, which has room.",
+          "model": "opencode/big-pickle"
+        },
+        "totalTokens": 14190,
+        "usage": {
+          "inputTokens": 1213,
+          "cachedInputTokens": 12544,
+          "outputTokens": 250,
+          "reasoningTokens": 183,
+          "totalTokens": 14190
+        },
+        "startedAt": 1791739834740,
+        "durationMs": 7945
+      },
+      "elapsedMs": 7965
+    }
+  ],
+  "logs": [],
+  "cleanupErrors": [],
+  "startedAt": "2026-10-11T17:30:34.729Z",
+  "durationMs": 44964
+}

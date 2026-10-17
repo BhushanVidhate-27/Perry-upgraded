@@ -1,0 +1,18 @@
+{
+  "checks": {
+    "refusedWhenOff": false,
+    "refusedWithoutPet": false
+  },
+  "notes": {
+    "chatId": "bq5c8t89kn941qy8nfpsx1zw4v",
+    "refusedWhenOff": {
+      "error": "The owner turned off letting you control the computer (Settings → Desktop pet). Tell them you'd like to use it."
+    },
+    "refusedWithoutPet": {
+      "error": "The desktop pet is not running. Ask the owner to turn it on (Settings → Desktop pet). Paste a screenshot if you need to work from one."
+    },
+    "perryPet": "Perry on your desktop\n  Click him for your chats, to-dos and what needs you; drag him anywhere. Ctrl+Shift+Space talks to him.\n  He starts with your computer from now on; perry pet off stops that.\n  The first time he looks at your screen, macOS asks you to allow Electron (the app he runs in) to record it; restart him from his tray icon after.\n\n  ✔ installed\n  ✔ Electron ready\n  ✔ on your screen"
+  },
+  "passed": false,
+  "error": "timed out: the target window to open"
+}

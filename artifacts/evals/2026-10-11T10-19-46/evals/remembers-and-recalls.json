@@ -1,0 +1,176 @@
+{
+  "id": "remembers-and-recalls",
+  "description": "Remembers a fact in one chat, recalls it in a fresh one, then forgets it when asked.",
+  "tags": [
+    "memory"
+  ],
+  "verdict": "passed",
+  "assertions": [
+    {
+      "name": "calledTool(remember)",
+      "score": 1,
+      "severity": "gate",
+      "passed": true,
+      "errored": false,
+      "metadata": {
+        "calls": 1
+      }
+    },
+    {
+      "name": "includes(Loralodo)",
+      "score": 1,
+      "severity": "gate",
+      "passed": true,
+      "errored": false
+    },
+    {
+      "name": "similarity [just the name]",
+      "score": 1,
+      "severity": "soft",
+      "passed": true,
+      "errored": false,
+      "message": "expected similarity to \"Loralodo\"; received \"Loralodo\""
+    },
+    {
+      "name": "calledTool(forget)",
+      "score": 1,
+      "severity": "gate",
+      "passed": true,
+      "errored": false,
+      "metadata": {
+        "calls": 1
+      }
+    },
+    {
+      "name": "equals [gone from memory]",
+      "score": 1,
+      "severity": "gate",
+      "passed": true,
+      "errored": false
+    }
+  ],
+  "turns": [
+    {
+      "chatId": "2r10c3wchsb3ttnygbfw2cz161",
+      "prompt": "This is an automated test. Please remember this for later: my houseplant is called Loralodo.",
+      "message": "Saved it — your houseplant Loralodo is in Things to remember under Home. Noted for whenever it comes up. 🌿",
+      "toolCalls": [
+        "execute",
+        "remember"
+      ],
+      "run": {
+        "id": "cjx5mwr95gymtgyq8ntw9mb0a6",
+        "sessionId": "2r10c3wchsb3ttnygbfw2cz161",
+        "threadId": "gvdw0ntc65yaydr1pr8wdzgqf3",
+        "chatTitle": "This is an automated test. Please remember this for later: my houseplant is call",
+        "channel": "web",
+        "prompt": "This is an automated test. Please remember this for later: my houseplant is called Loralodo.",
+        "status": "ok",
+        "steps": 1,
+        "toolCalls": [
+          "execute",
+          "remember"
+        ],
+        "model": "opencode/opencode/big-pickle",
+        "route": {
+          "engine": "opencode",
+          "tier": "standard",
+          "by": "auto",
+          "why": "Standard tier, for a chat: opencode/big-pickle. On OpenCode, your default engine, which has room.",
+          "model": "opencode/big-pickle"
+        },
+        "totalTokens": 45940,
+        "usage": {
+          "inputTokens": 15948,
+          "cachedInputTokens": 29696,
+          "outputTokens": 191,
+          "reasoningTokens": 105,
+          "totalTokens": 45940
+        },
+        "startedAt": 1791714043180,
+        "durationMs": 17321
+      },
+      "elapsedMs": 17360
+    },
+    {
+      "chatId": "c2zq2zk01w28g1pnhw6qcm5q92",
+      "prompt": "This is an automated test. What is my houseplant called? Reply with just its name.",
+      "message": "Loralodo",
+      "toolCalls": [],
+      "run": {
+        "id": "0j4qmj66gchv20dtje87rvhpkj",
+        "sessionId": "c2zq2zk01w28g1pnhw6qcm5q92",
+        "threadId": "eazew7jxfky8wzmenrgtxzt5qy",
+        "chatTitle": "This is an automated test. What is my houseplant called? Reply with just its nam",
+        "channel": "web",
+        "prompt": "This is an automated test. What is my houseplant called? Reply with just its name.",
+        "status": "ok",
+        "steps": 1,
+        "toolCalls": [],
+        "model": "opencode/opencode/big-pickle",
+        "route": {
+          "engine": "opencode",
+          "tier": "standard",
+          "by": "auto",
+          "why": "Standard tier, for a chat: opencode/big-pickle. On OpenCode, your default engine, which has room.",
+          "model": "opencode/big-pickle"
+        },
+        "totalTokens": 13306,
+        "usage": {
+          "inputTokens": 562,
+          "cachedInputTokens": 12416,
+          "outputTokens": 26,
+          "reasoningTokens": 302,
+          "totalTokens": 13306
+        },
+        "startedAt": 1791714060547,
+        "durationMs": 3831
+      },
+      "elapsedMs": 3853
+    },
+    {
+      "chatId": "c2zq2zk01w28g1pnhw6qcm5q92",
+      "prompt": "This is an automated test, and I confirm the deletion: forget the memory about my houseplant's name. Don't ask me again.",
+      "message": "Deleted — the houseplant's name is no longer in memory.",
+      "toolCalls": [
+        "forget"
+      ],
+      "run": {
+        "id": "kn5ecxea3zzedmjrbefv25h5je",
+        "sessionId": "c2zq2zk01w28g1pnhw6qcm5q92",
+        "threadId": "eazew7jxfky8wzmenrgtxzt5qy",
+        "chatTitle": "This is an automated test. What is my houseplant called? Reply with just its nam",
+        "channel": "web",
+        "prompt": "This is an automated test, and I confirm the deletion: forget the memory about my houseplant's name. Don't ask me again.",
+        "status": "ok",
+        "steps": 1,
+        "toolCalls": [
+          "forget"
+        ],
+        "model": "opencode/opencode/big-pickle",
+        "route": {
+          "engine": "opencode",
+          "tier": "standard",
+          "by": "auto",
+          "why": "Standard tier, for a chat: opencode/big-pickle. On OpenCode, your default engine, which has room.",
+          "model": "opencode/big-pickle"
+        },
+        "totalTokens": 27522,
+        "usage": {
+          "inputTokens": 815,
+          "cachedInputTokens": 26368,
+          "outputTokens": 86,
+          "reasoningTokens": 253,
+          "totalTokens": 27522
+        },
+        "startedAt": 1791714064413,
+        "durationMs": 5224
+      },
+      "elapsedMs": 5250
+    }
+  ],
+  "logs": [],
+  "cleanupErrors": [],
+  "startedAt": "2026-10-11T10:20:43.159Z",
+  "durationMs": 26553
+}

@@ -1,0 +1,82 @@
+{
+  "id": "markdown-answer",
+  "description": "Answers a comparison in clean Markdown that the chat can render.",
+  "tags": [
+    "style"
+  ],
+  "verdict": "failed",
+  "assertions": [
+    {
+      "name": "includes(/^\\s*\\|?\\s*:?-{3,}:?\\s*\\|/m) [table separator row]",
+      "score": 1,
+      "severity": "gate",
+      "passed": true,
+      "errored": false
+    },
+    {
+      "name": "includes(/^\\s*[-*] \\S/m) [bulleted list]",
+      "score": 1,
+      "severity": "gate",
+      "passed": true,
+      "errored": false
+    },
+    {
+      "name": "judge",
+      "score": 0.1,
+      "severity": "gate",
+      "threshold": 0.7,
+      "passed": false,
+      "errored": false,
+      "message": "The table and two-bullet list are well-formed, but the reply adds a filler preamble sentence, a fourth row beyond the three required aspects, and a trailing sign-off note, all of which violate the stated format.",
+      "metadata": {
+        "criteria": "The reply is well-formed Markdown: a table with a header row, a separator row and one row per aspect (caffeine, taste, price), followed by a bulleted list of two tips, with no filler preamble or sign-off.",
+        "judgment": {
+          "probability": 0.1,
+          "reason": "The table and two-bullet list are well-formed, but the reply adds a filler preamble sentence, a fourth row beyond the three required aspects, and a trailing sign-off note, all of which violate the stated format."
+        }
+      }
+    }
+  ],
+  "turns": [
+    {
+      "chatId": "nt0cyrhe6yxzcd6c0n1zj7fsse",
+      "prompt": "This is an automated test. Compare tea and coffee on caffeine, taste and price in a Markdown table, then give two tips as a bulleted list.",
+      "message": "Quick take: coffee wins on caffeine and usually on cost per cup, tea wins on gentleness and taste range.\n\n| | Coffee (brewed, 240 ml) | Tea (black, 240 ml) |\n|---|---|---|\n| **Caffeine** | ~95 mg (60–150 mg, varies by roast and brew) | ~47 mg (30–70 mg; green ~25–30 mg) |\n| **Taste** | Bold, bitter, roasted; acidity and body vary by bean and roast | Lighter, tannic, astringent; huge range from grassy green to malty black, plus herbal (0 mg) |\n| **Price** | ~₹8–20 per home cup (beans/ground, ~₹400–900 per 500 g) | ~₹2–6 per home cup (leaves/bags, ~₹200–500 per 250 g) |\n| **Cost per mg caffeine** | Cheaper | Roughly 2–3× more expensive |\n\n- **Match the dose to the hour:** caffeine peaks in your blood 30–60 minutes after drinking and lingers for hours — keep coffee to the morning and switch to tea (or green/herbal) after early afternoon so it doesn't cost you sleep.\n- **Brew for taste, not just strength:** coffee gets bitter fast above ~96°C and after ~4 minutes; tea (especially green) prefers water around 80–85°C and 2–3 minutes. Better technique improves both more than buying pricier beans or leaves.\n\nPrices are typical Indian retail ranges and will shift with brand and where you buy.",
+      "toolCalls": [],
+      "run": {
+        "id": "72kd6kgankbfrv2p0pqma21g74",
+        "sessionId": "nt0cyrhe6yxzcd6c0n1zj7fsse",
+        "threadId": "t9z6nkvbw4y9tpg87grayk5pdp",
+        "chatTitle": "This is an automated test. Compare tea and coffee on caffeine, taste and price i",
+        "channel": "web",
+        "prompt": "This is an automated test. Compare tea and coffee on caffeine, taste and price in a Markdown table, then give two tips as a bulleted list.",
+        "status": "ok",
+        "steps": 1,
+        "toolCalls": [],
+        "model": "opencode/opencode/big-pickle",
+        "route": {
+          "engine": "opencode",
+          "tier": "standard",
+          "by": "auto",
+          "why": "Standard tier, for a chat: opencode/big-pickle. On OpenCode, your default engine, which has room.",
+          "model": "opencode/big-pickle"
+        },
+        "totalTokens": 13349,
+        "usage": {
+          "inputTokens": 454,
+          "cachedInputTokens": 12416,
+          "outputTokens": 340,
+          "reasoningTokens": 139,
+          "totalTokens": 13349
+        },
+        "startedAt": 1791659648501,
+        "durationMs": 6403
+      },
+      "elapsedMs": 6437
+    }
+  ],
+  "logs": [],
+  "cleanupErrors": [],
+  "startedAt": "2026-10-10T19:14:08.480Z",
+  "durationMs": 33785
+}

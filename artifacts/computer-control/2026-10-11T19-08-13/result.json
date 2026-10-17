@@ -1,0 +1,58 @@
+{
+  "checks": {
+    "refusedWhenOff": true,
+    "refusedWithoutPet": true,
+    "fulfilsWithResult": true,
+    "moveAccepted": true,
+    "clickReachesTarget": true
+  },
+  "notes": {
+    "chatId": "rnm9597pgp05gxfba5gjzfws5s",
+    "refusedWhenOff": "The owner turned off letting you control the computer (Settings → Desktop pet). Tell them you'd like to use it.",
+    "refusedWithoutPet": "The desktop pet is not running. Ask the owner to turn it on (Settings → Desktop pet). Paste a screenshot if you need to work from one.",
+    "perryPet": "Perry on your desktop\n  Click him for your chats, to-dos and what needs you; drag him anywhere. Ctrl+Shift+Space talks to him.\n  He starts with your computer from now on; perry pet off stops that.\n  The first time he looks at your screen, macOS asks you to allow Electron (the app he runs in) to record it; restart him from his tray icon after.\n\n  ✔ Electron ready\n  ✔ on your screen",
+    "frontApp": {
+      "_id": "q0s4h1f59mktgnhqr2p6psd100",
+      "_creationTime": 1791725897872,
+      "conversationId": "rnm9597pgp05gxfba5gjzfws5s",
+      "action": "front_app",
+      "args": {},
+      "why": "read the app in front",
+      "status": "done",
+      "createdAt": 1791725897872,
+      "result": {
+        "front": {
+          "bundle": "com.github.Electron",
+          "name": "Electron",
+          "pid": 6976,
+          "title": "Perry computer-control target"
+        },
+        "ok": true
+      }
+    },
+    "move": {
+      "_id": "4tpgkgvj22w1sqc0tx175heae9",
+      "_creationTime": 1791725901929,
+      "conversationId": "rnm9597pgp05gxfba5gjzfws5s",
+      "action": "move",
+      "args": {
+        "x": 0.5,
+        "y": 0.5,
+        "why": "to the middle"
+      },
+      "why": "move to the middle",
+      "status": "done",
+      "createdAt": 1791725901929,
+      "result": {
+        "moved": [
+          735,
+          478
+        ],
+        "ok": true
+      }
+    },
+    "targetLog": "focusin\nready\nclick\n"
+  },
+  "passed": false,
+  "error": "timed out: the marker to be typed into the target"
+}

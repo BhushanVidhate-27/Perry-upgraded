@@ -1,0 +1,86 @@
+<!doctype html>
+<!-- A paper-trading demo: fake money, a fake price, no network. Every control is reachable
+     by Tab and acts on Return, so a binding can trade it without a single coordinate. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Paper Desk — demo trading</title>
+<style>
+  body { font: 15px/1.5 -apple-system, system-ui, sans-serif; margin: 0; background: #0b0d10; color: #e6e9ef; }
+  main { max-width: 760px; margin: 0 auto; padding: 28px 24px 60px; }
+  h1 { font-size: 20px; margin: 0 0 2px; } .sub { color: #8b93a1; margin: 0 0 22px; font-size: 13px; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+  label { color: #8b93a1; font-size: 13px; }
+  input { font: inherit; padding: 7px 10px; border-radius: 7px; border: 1px solid #2a2f38; background: #14181d; color: #e6e9ef; width: 110px; }
+  button { font: inherit; font-weight: 600; padding: 8px 20px; border-radius: 7px; border: 0; cursor: pointer; }
+  .buy { background: #1f9d55; color: #fff; } .sell { background: #b8332b; color: #fff; }
+  :is(button, input, a):focus-visible { outline: 3px solid #4c8dff; outline-offset: 2px; }
+  .cards { display: flex; gap: 12px; margin: 20px 0 26px; }
+  .card { flex: 1; background: #14181d; border: 1px solid #222831; border-radius: 10px; padding: 12px 14px; }
+  .card b { display: block; font-size: 20px; } .card span { color: #8b93a1; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  table { width: 100%; border-collapse: collapse; } th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid #1e232b; font-size: 14px; }
+  th { color: #8b93a1; font-weight: 500; font-size: 12px; }
+  #log { margin-top: 22px; font-size: 13px; color: #8b93a1; } #log div { padding: 3px 0; border-bottom: 1px solid #1a1f26; }
+  .up { color: #35c07f; } .down { color: #ff6b60; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Paper Desk <span class="sub" style="display:inline">— demo account · fake money · nothing leaves this page</span></h1>
+  <p class="sub" id="quote">DEMO-1 · —</p>
+  <div class="row">
+    <label for="sym">Symbol</label><input id="sym" value="DEMO-1" autocomplete="off" spellcheck="false">
+    <label for="qty">Qty</label><input id="qty" value="10" autocomplete="off" inputmode="numeric">
+    <button class="buy" id="buy">Buy</button>
+    <button class="sell" id="sell">Sell</button>
+  </div>
+  <div class="cards">
+    <div class="card"><span>Cash</span><b id="cash">$10,000.00</b></div>
+    <div class="card"><span>Position</span><b id="pos">0</b></div>
+    <div class="card"><span>Avg price</span><b id="avg">—</b></div>
+    <div class="card"><span>P&amp;L</span><b id="pnl">—</b></div>
+  </div>
+  <table><thead><tr><th>Time</th><th>Side</th><th>Qty</th><th>Price</th></tr></thead><tbody id="fills"></tbody></table>
+  <div id="log"></div>
+</main>
+<script>
+  let cash = 10000, qty = 0, avg = 0, price = 100;
+  const el = (id) => document.getElementById(id);
+  const money = (n) => n.toLocaleString("en-US", { style: "currency", currency: "USD" });
+  function draw() {
+    el("cash").textContent = money(cash);
+    el("pos").textContent = qty;
+    el("avg").textContent = qty ? money(avg) : "—";
+    const pnl = qty ? (price - avg) * qty : 0;
+    el("pnl").textContent = qty ? (pnl >= 0 ? "+" : "") + money(pnl) : "—";
+    el("pnl").className = qty ? (pnl >= 0 ? "up" : "down") : "";
+    el("quote").textContent = el("sym").value.toUpperCase() + " · " + money(price);
+  }
+  function fill(side, n) {
+    const cost = n * price;
+    if (side === "BUY") {
+      if (cost > cash) return note("not enough demo cash for " + money(cost));
+      avg = (avg * qty + cost) / (qty + n); qty += n; cash -= cost;
+    } else {
+      if (n > qty) return note("only " + qty + " demo shares held");
+      qty -= n; cash += cost; if (!qty) avg = 0;
+    }
+    const row = el("fills").insertRow(0);
+    for (const text of [new Date().toLocaleTimeString(), side, n, money(price)]) {
+      const cell = row.insertCell(); cell.textContent = text;
+    }
+    note(side + " " + n + " " + el("sym").value.toUpperCase() + " @ " + money(price));
+    draw();
+  }
+  const note = (text) => {
+    const line = document.createElement("div");
+    line.textContent = text; el("log").prepend(line);
+  };
+  el("buy").onclick = () => fill("BUY", Number(el("qty").value) || 0);
+  el("sell").onclick = () => fill("SELL", Number(el("qty").value) || 0);
+  setInterval(() => { price = Math.round(price * (1 + (Math.random() - 0.48) / 100) * 100) / 100; draw(); }, 2000);
+  draw();
+  note("demo account ready · " + money(cash) + " of fake cash");
+</script>
+</body>
+</html>

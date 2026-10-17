@@ -1,0 +1,8 @@
+{
+  "checks": {},
+  "notes": {
+    "chatId": "3hm95629drn249q5jaxfj1xr9v"
+  },
+  "passed": false,
+  "error": "computer:setSetting: No function named computer:setSetting."
+}

@@ -1,0 +1,82 @@
+{
+  "id": "markdown-answer",
+  "description": "Answers a comparison in clean Markdown that the chat can render.",
+  "tags": [
+    "style"
+  ],
+  "verdict": "failed",
+  "assertions": [
+    {
+      "name": "includes(/^\\s*\\|?\\s*:?-{3,}:?\\s*\\|/m) [table separator row]",
+      "score": 1,
+      "severity": "gate",
+      "passed": true,
+      "errored": false
+    },
+    {
+      "name": "includes(/^\\s*[-*] \\S/m) [bulleted list]",
+      "score": 1,
+      "severity": "gate",
+      "passed": true,
+      "errored": false
+    },
+    {
+      "name": "judge",
+      "score": 0.2,
+      "severity": "gate",
+      "threshold": 0.7,
+      "passed": false,
+      "errored": false,
+      "message": "The table is transposed with rows for Coffee/Tea instead of one row per aspect (caffeine, taste, price), and the reply adds filler preamble ('Here's the quick comparison:') plus an off-topic closing paragraph, though the two tips are correctly bulleted.",
+      "metadata": {
+        "criteria": "The reply is well-formed Markdown: a table with a header row, a separator row and one row per aspect (caffeine, taste, price), followed by a bulleted list of two tips, with no filler preamble or sign-off.",
+        "judgment": {
+          "probability": 0.2,
+          "reason": "The table is transposed with rows for Coffee/Tea instead of one row per aspect (caffeine, taste, price), and the reply adds filler preamble ('Here's the quick comparison:') plus an off-topic closing paragraph, though the two tips are correctly bulleted."
+        }
+      }
+    }
+  ],
+  "turns": [
+    {
+      "chatId": "a1ed6ys406p78dcvk48ac2r9wh",
+      "prompt": "This is an automated test. Compare tea and coffee on caffeine, taste and price in a Markdown table, then give two tips as a bulleted list.",
+      "message": "Here's the quick comparison:\n\n| | Caffeine (per 8 oz / 240 ml) | Taste | Price |\n|---|---|---|---|\n| **Coffee** | ~95 mg brewed; ~63 mg per espresso shot | Bold, bitter, roasted; flavor swings with roast and origin | Higher per cup; beans cost more, and milk/syrup drinks add up |\n| **Tea** | ~47 mg black; ~28 mg green | Lighter, astringent, grassy or floral; widest range of styles | Cheaper per cup; a box of bags or 50 g of leaves makes many servings |\n\n- Steep time and water temperature control tea's bitterness more than the leaf itself — black tea wants near-boiling water (~95 °C) for 3–5 min, green tea cooler (~80 °C) for 2–3 min.\n- If you're cutting caffeine gradually, mix half regular and half decaf grounds (or blend caffeinated and decaf tea bags) rather than quitting cold.\n\nOne flag, not part of the test: there's a bank card PIN sitting in your Things to remember page. Secrets shouldn't live in memory — want me to delete it and, if it's a login detail you actually need, move it into Logins & secrets instead?",
+      "toolCalls": [],
+      "run": {
+        "id": "7s7vx2w1w9qttqaw5aejc2cnxz",
+        "sessionId": "a1ed6ys406p78dcvk48ac2r9wh",
+        "threadId": "p1es83jnmd56kzwz7ws8zqrrs7",
+        "chatTitle": "This is an automated test. Compare tea and coffee on caffeine, taste and price i",
+        "channel": "web",
+        "prompt": "This is an automated test. Compare tea and coffee on caffeine, taste and price in a Markdown table, then give two tips as a bulleted list.",
+        "status": "ok",
+        "steps": 1,
+        "toolCalls": [],
+        "model": "opencode/opencode/big-pickle",
+        "route": {
+          "engine": "opencode",
+          "tier": "standard",
+          "by": "auto",
+          "why": "Standard tier, for a chat: opencode/big-pickle. On OpenCode, your default engine, which has room.",
+          "model": "opencode/big-pickle"
+        },
+        "totalTokens": 13743,
+        "usage": {
+          "inputTokens": 698,
+          "cachedInputTokens": 12288,
+          "outputTokens": 269,
+          "reasoningTokens": 488,
+          "totalTokens": 13743
+        },
+        "startedAt": 1791660776052,
+        "durationMs": 8471
+      },
+      "elapsedMs": 8508
+    }
+  ],
+  "logs": [],
+  "cleanupErrors": [],
+  "startedAt": "2026-10-10T19:32:56.031Z",
+  "durationMs": 34599
+}

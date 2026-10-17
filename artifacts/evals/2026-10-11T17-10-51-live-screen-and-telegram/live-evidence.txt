@@ -1,0 +1,10 @@
+=== screenWatches (timed screen reading) ===
+{"conversationId":"gm796q7k7rww6j1ngwt8df5dhj","which":"screen","why":"the owner asked me to watch their screen every 30 seconds","everyMs":30000,"until":1791740279864,"status":"stopped","createdAt":1791738479864,"lastAt":1791738561760}
+{"conversationId":"gm796q7k7rww6j1ngwt8df5dhj","which":"screen","why":"the owner asked me to watch their screen every 30 seconds","everyMs":30000,"until":1791740353731,"status":"stopped","createdAt":1791738553731}
+
+=== screenLooks (ticks capturing screenshots via the pet) ===
+{"conversationId":"gm796q7k7rww6j1ngwt8df5dhj","which":"screen","why":"watching: the owner asked me to watch their screen every 30 seconds","status":"done","createdAt":1791738561760,"path":"/Users/bhushan/.perry/uploads/4cc08d4a-cd29-4c12-922d-41f7ac866c63.png","name":"Whole screen"}
+{"conversationId":"gm796q7k7rww6j1ngwt8df5dhj","which":"screen","why":"watching: the owner asked me to watch their screen every 30 seconds","status":"done","createdAt":1791738531760,"path":"/Users/bhushan/.perry/uploads/42bc4a59-bbd3-4625-8426-97c887b3de62.png","name":"Whole screen"}
+
+=== Telegram send mirror (send_me_a_file) ===
+{"threadId":"b8phq0taf6mjxw4kyvt1ms50ww","userId":"telegram:5037527378","order":2,"message":{"role":"assistant","content":"Sent the owner 4cc08d4a-cd29-4c12-922d-41f7ac866c63.png on Telegram (the screenshot the owner asked to put on their phone)."},"text":"Sent the owner 4cc08d4a-cd29-4c12-922d-41f7ac866c63.png on Telegram (the screenshot the owner asked to put on their phone)."}
