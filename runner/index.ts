@@ -269,7 +269,7 @@ async function main() {
 
   // --- Engines ---------------------------------------------------------------
 
-  const engines = createEngines({
+  const engines = await createEngines({
     warn: (line) => console.log(yellow(`  ${line}`)),
     // A key from Settings → Engines an engine needs on this computer (Antigravity's Gemini API key).
     secret: async (name) => name === "GEMINI_API_KEY" ? (await client.query(api.engines.secret, { token, name })) ?? undefined : undefined,

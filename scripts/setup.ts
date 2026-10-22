@@ -150,7 +150,7 @@ async function look(engines: Map<EngineKind, Engine>): Promise<Map<EngineKind, E
 
 /** One engine looked at afresh, after it was installed or signed in: a new probe, not one that remembers failing a moment ago. */
 async function lookAgain(kind: EngineKind): Promise<EngineStatus> {
-  const engines = createEngines({ warn: () => {} });
+  const engines = await createEngines({ warn: () => {} });
   try {
     return (await look(new Map([[kind, engines.get(kind)!]]))).get(kind)!;
   } finally {
@@ -236,7 +236,7 @@ async function chooseEngine(): Promise<{ engine: EngineKind; chosen: boolean; li
   const current = status?.value.defaultEngine ?? pending;
 
   const looking = await spinner("Looking for engines on this computer…");
-  const engines = createEngines({ warn: () => {} });
+  const engines = await createEngines({ warn: () => {} });
   let statuses: Map<EngineKind, EngineStatus>;
   try {
     statuses = await look(engines);

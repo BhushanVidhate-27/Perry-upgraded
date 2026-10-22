@@ -289,7 +289,7 @@ export const settleCard = internalAction({
 
 // --- The desktop pet and the dashboard -----------------------------------
 
-export type Board = { timezone: string; open: TodoView[]; doneToday: TodoView[]; streak: number };
+export type Board = { timezone: string; open: TodoView[]; doneToday: TodoView[]; doneRecent: TodoView[]; streak: number };
 
 export const board = query({
   args: { key: v.string() },
@@ -297,11 +297,13 @@ export const board = query({
     assertDashboardKey(args.key);
     const timezone = await timezoneOf(ctx);
     const today = dayOf(Date.now(), timezone);
-    const recent = await ctx.db.query("todos").withIndex("by_done", (q) => q.gt("doneAt", Date.now() - 86_400_000)).order("desc").collect();
+    const recent = await ctx.db.query("todos").withIndex("by_done", (q) => q.gt("doneAt", Date.now() - 30 * 86_400_000)).order("desc").collect();
+    const doneRecent = recent.map(view);
     return {
       timezone,
       open: (await open(ctx)).map(view),
       doneToday: recent.filter((todo) => dayOf(todo.doneAt!, timezone) === today).map(view),
+      doneRecent,
       streak: await streakOf(ctx, timezone),
     };
   },

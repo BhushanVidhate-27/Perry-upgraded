@@ -962,6 +962,8 @@ export default defineSchema({
     conversationId: v.id("conversations"),
     messageKey: v.string(),
     storageId: v.optional(v.id("_storage")),
+    /** B2 Blackblaze file id, when the file lives in B2 cloud storage. */
+    b2FileId: v.optional(v.string()),
     /** Absolute path on the owner's machine. */
     localPath: v.optional(v.string()),
     fileName: v.string(),
@@ -977,7 +979,8 @@ export default defineSchema({
     .index("by_conversation", ["conversationId"])
     .index("by_message", ["conversationId", "messageKey"])
     .index("by_path", ["localPath"])
-    .index("by_storage", ["storageId"]),
+    .index("by_storage", ["storageId"])
+    .index("by_b2", ["b2FileId"]),
 
   /**
    * The Library (issue #216): one row per file the owner gave Perry or Perry made, wherever it already is.
@@ -993,6 +996,8 @@ export default defineSchema({
     size: v.number(),
     localPath: v.optional(v.string()),
     storageId: v.optional(v.id("_storage")),
+    /** B2 Blackblaze file id, when the file lives in B2 cloud storage. */
+    b2FileId: v.optional(v.string()),
     by: v.union(v.literal("owner"), v.literal("perry")),
     from: vLibraryFrom,
     /** How it came to be (lib/library.ts, HOW). */
@@ -1010,6 +1015,7 @@ export default defineSchema({
     .index("by_created", ["createdAt"])
     .index("by_path", ["localPath"])
     .index("by_storage", ["storageId"])
+    .index("by_b2", ["b2FileId"])
     .index("by_conversation", ["conversationId"]),
 
   /**

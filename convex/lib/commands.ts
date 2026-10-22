@@ -282,3 +282,68 @@ export function parseMissedCommand(text: string): { action: "run" | "skip"; whic
   const which = match[2]?.toLowerCase();
   return { action: match[1].toLowerCase() as "run" | "skip", ...(which ? { which: which === "all" ? "all" as const : Number(which) } : {}) };
 }
+
+// --- Storage commands ($storage) -------------------------------------------
+
+/** "/storage", "/storage list", "/storage get <name>", "/storage put <name>", "/storage del <name>" (and "/storage@botname" on Telegram). */
+export function parseStorageCommand(text: string): { action: "list" | "get" | "put" | "del"; name?: string } | null {
+  const match = text.trim().match(/^\/(storage)(?:@\S+)?(?:\s+(list|get|put|del)(?:\s+(\S+))?)?\s*$/i);
+  if (!match) return null;
+  const action = (match[2] ?? "list").toLowerCase() as "list" | "get" | "put" | "del";
+  return { action, name: match[3] ?? undefined };
+}
+
+/** The reply to "/storage list": the files in B2, or a note when B2 is not set up. */
+export function describeStorage(files: Array<{ fileName: string; size: number; contentType?: string }>, configured: boolean): string {
+  if (!configured) {
+    return [
+      "B2 Blackblaze is not configured yet.",
+      "",
+      "Set these in Settings → Logins & secrets:",
+      "  B2_KEY_ID        your B2 key ID",
+      "  B2_APPLICATION_KEY  your B2 application key",
+      "  B2_BUCKET_NAME   your bucket name",
+      "",
+      "Then /storage list shows what is up there.",
+    ].join("\n");
+  }
+  if (!files.length) return "Nothing stored in B2 yet. Send me a file and I will keep it there.";
+  return [
+    `Files in B2 (${files.length}):`,
+    ...files.map((f) => `  ${f.fileName}  ·  ${(f.size / 1048576).toFixed(2)} MB  ·  ${f.contentType ?? "application/octet-stream"}`),
+    "",
+    "/storage get <name> downloads one. /storage del <name> removes one.",
+  ].join("\n");
+}
+
+// --- System commands (/system) -------------------------------------------
+
+/** "/system" (and "/system@botname" on Telegram). */
+export function parseSystemCommand(text: string): { action: "status" } | null {
+  const match = text.trim().match(/^\/system(?:@\S+)?\s*$/i);
+  return match ? { action: "status" } : null;
+}
+
+/** The reply to "/system": Perry's status, B2 and Telegram health. */
+export function describeSystem(b2Configured: boolean, telegramConfigured: boolean, uptime: number): string {
+  const days = Math.floor(uptime / 86400000);
+  const hours = Math.floor((uptime % 86400000) / 3600000);
+  const minutes = Math.floor((uptime % 3600000) / 60000);
+  return [
+    `Perry is running (${days}d ${hours}h ${minutes}m uptime).`,
+    "",
+    `Telegram bot: ${telegramConfigured ? "configured" : "not configured"}`,
+    `B2 Blackblaze: ${b2Configured ? "configured" : "not configured"}`,
+    "",
+    "Send /help for commands.",
+  ].join("\n");
+}
+
+// --- Web commands (/web) -------------------------------------------------
+
+/** "/web <url>" (and "/web@botname" on Telegram). */
+export function parseWebCommand(text: string): { url?: string } | null {
+  const match = text.trim().match(/^\/(web)(?:@\S+)?(?:\s+(\S+))?\s*$/i);
+  if (!match) return null;
+  return { url: match[2] ?? undefined };
+}

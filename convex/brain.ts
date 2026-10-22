@@ -6,14 +6,16 @@ import { internalAction, type ActionCtx } from "./_generated/server";
 import { INSTRUCTIONS } from "./assistant";
 import { ownerClock, ownerNow, QUIET } from "./jobs";
 import {
-  ACCESS_LABELS, chatModel, currentModel, describeAccess, describeEfforts, describeMissed, describeModels, effortUnused, parseAccessCommand,
-  parseMissedCommand, parseModelCommand, parseThinkCommand, PAUSED_ERROR, PAUSED_OWNER, PAUSED_REPLY, pickAccess, pickEffort, pickModel, runLabel,
+  ACCESS_LABELS, chatModel, currentModel, describeAccess, describeEfforts, describeMissed, describeModels, describeStorage, describeSystem, effortUnused, parseAccessCommand,
+  parseMissedCommand, parseModelCommand, parseStorageCommand, parseSystemCommand, parseThinkCommand, parseWebCommand, PAUSED_ERROR, PAUSED_OWNER, PAUSED_REPLY, pickAccess, pickEffort, pickModel, runLabel,
   turnEffort, type MissedRun, type ModelOption,
 } from "./lib/commands";
+import { b2Creds } from "./media";
+import { b2Delete, b2Download, b2List, b2Upload } from "./lib/b2";
 import { describeUsage } from "./lib/usage";
 import { ENGINE_LABELS, type EngineKind } from "./lib/engines";
 import type { Choice } from "./lib/routing";
-import { DOWNLOAD_LIMIT, downloadFile, sendMessage, sendTyping } from "./lib/telegram";
+import { DOWNLOAD_LIMIT, downloadFile, sendFile, sendMessage, sendTyping } from "./lib/telegram";
 import { resumeOf } from "./engines";
 import { sha256 } from "./memories";
 import { LEFT_PROJECT } from "./projects";
@@ -58,6 +60,7 @@ async function runCommand(
   ctx: ActionCtx,
   conversation: Doc<"conversations">,
   text: string,
+  telegramToken: string | null,
 ): Promise<string> {
   const [raw] = text.trim().split(/\s+/);
   const command = raw.toLowerCase().replace(/@.*$/, ""); // strip /cmd@botname
@@ -91,6 +94,78 @@ async function runCommand(
     const { access, reply } = pickAccess(accessCommand.mode);
     if (access) await ctx.runMutation(internal.conversations.setAccess, { id: conversation._id, access });
     return reply;
+  }
+
+  const creds = await b2Creds(ctx);
+  const storageCommand = parseStorageCommand(text);
+  if (storageCommand) {
+    switch (storageCommand.action) {
+      case "list": {
+        if (!creds) return describeStorage([], false);
+        try {
+          const files = await b2List(creds, { max: 50 });
+          return describeStorage(files.map((f) => ({ fileName: f.fileName, size: f.size, contentType: f.contentType })), true);
+        } catch (error) {
+          return `B2 list failed: ${error instanceof Error ? error.message : String(error)}`;
+        }
+      }
+      case "get": {
+        if (!storageCommand.name) return "Usage: /storage get <name>";
+        if (!creds) return "B2 is not configured yet.";
+        try {
+          const { bytes, contentType } = await b2Download(creds, storageCommand.name);
+          if (!telegramToken) return "No Telegram bot set up.";
+          await sendFile(telegramToken, conversation.externalId, {
+            blob: new Blob([Buffer.from(bytes)], { type: contentType }),
+            fileName: storageCommand.name,
+            contentType,
+          });
+          return `Sent ${storageCommand.name}.`;
+        } catch (error) {
+          return `Could not send ${storageCommand.name}: ${error instanceof Error ? error.message : String(error)}`;
+        }
+      }
+      case "put":
+        return "Use /storage get <name> to download a file, or send me a file directly and I will store it in B2.";
+      case "del": {
+        if (!storageCommand.name) return "Usage: /storage del <name>";
+        if (!creds) return "B2 is not configured yet.";
+        try {
+          await b2Delete(creds, { fileId: storageCommand.name, fileName: storageCommand.name });
+          return `Deleted ${storageCommand.name} from B2.`;
+        } catch (error) {
+          return `Could not delete ${storageCommand.name}: ${error instanceof Error ? error.message : String(error)}`;
+        }
+      }
+    }
+  }
+
+  const systemCommand = parseSystemCommand(text);
+  if (systemCommand) {
+    const b2CredsRes = await b2Creds(ctx);
+    const telegramToken = await ctx.runQuery(internal.secrets.get, { name: "TELEGRAM_BOT_TOKEN" });
+    return describeSystem(Boolean(b2CredsRes), Boolean(telegramToken), process.uptime() * 1000);
+  }
+
+  const webCommand = parseWebCommand(text);
+  if (webCommand) {
+    if (!webCommand.url) return "Usage: /web <url>";
+    if (!creds) return "B2 is not configured yet. Set B2_KEY_ID, B2_APPLICATION_KEY and B2_BUCKET_NAME.";
+    try {
+      const response = await fetch(webCommand.url);
+      if (!response.ok) return `Could not fetch ${webCommand.url}: HTTP ${response.status}`;
+      const contentType = response.headers.get("content-type") ?? "application/octet-stream";
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      const fileName = webCommand.url.split("/").pop() || "page";
+      const b2FileId = await b2Upload(creds, {
+        fileName,
+        contentType,
+        bytes,
+      });
+      return `Saved ${webCommand.url} to B2 as ${fileName}.`;
+    } catch (error) {
+      return `Could not fetch ${webCommand.url}: ${error instanceof Error ? error.message : String(error)}`;
+    }
   }
 
   // Paused, nothing that starts a turn goes ahead (pause.ts): /reset would start the chat afresh without saving it.
@@ -571,7 +646,7 @@ export const handleTurn = internalAction({
         return null;
       }
       if (command) {
-        await say(await runCommand(ctx, conversation, args.text));
+        await say(await runCommand(ctx, conversation, args.text, telegramToken));
         return null;
       }
 
@@ -591,9 +666,21 @@ export const handleTurn = internalAction({
           }
           try {
             const bytes = await downloadFile(telegramToken, item.fileId);
-            const storageId = await ctx.storage.store(new Blob([bytes], { type: item.contentType }));
+            const creds = await b2Creds(ctx);
+            let b2FileId: string | undefined;
+            let storageId: Id<"_storage"> | undefined;
+            if (creds) {
+              b2FileId = await b2Upload(creds, {
+                fileName: item.fileName,
+                contentType: item.contentType,
+                bytes: new Uint8Array(bytes),
+              });
+            } else {
+              storageId = await ctx.storage.store(new Blob([Buffer.from(bytes)], { type: item.contentType }));
+            }
             attachmentIds.push(await ctx.runMutation(internal.media.attachStored, {
-              conversationId: conversation._id, messageKey, storageId, fileName: item.fileName, contentType: item.contentType, size: bytes.byteLength,
+              conversationId: conversation._id, messageKey, storageId, b2FileId,
+              fileName: item.fileName, contentType: item.contentType, size: bytes.byteLength,
             }));
           } catch (error) {
             console.error(`Could not fetch a Telegram file: ${String(error)}`);

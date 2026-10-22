@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: perry-telegram-bot
+    env: docker
+    region: oregon
+    branch: main
+    dockerfile: ./Dockerfile
+    dockerContext: .
+    # Persistent disk for SQLite database + local file storage
+    disk:
+      name: perry-data
+      mountPath: /data
+      sizeGB: 10
+    # Health check — Perry's /health endpoint
+    healthCheckPath: /api/backend/http/health
+    healthCheckTimeout: 10
+    healthCheckInterval: 30
+    healthCheckRestartThreshold: 3
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 7377
+      - key: PERRY_HOME
+        value: /data/.perry
+      - key: PERRY_PORT
+        value: 7377
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: B2_KEY_ID
+        sync: false
+      - key: B2_APPLICATION_KEY
+        sync: false
+      - key: B2_BUCKET_NAME
+        sync: false
+      - key: DASHBOARD_KEY
+        generate: true

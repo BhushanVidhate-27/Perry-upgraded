@@ -37,10 +37,6 @@
   // never stops to ask; the one hard block left is recursive force-delete,
   // which denies (rather than asks), so it never prompts either. Add your own
   // { action, resource, effect } rules before the deny to carve out exceptions.
-  "permissions": [
-    { "action": "*", "resource": "*", "effect": "allow" },
-    { "action": "shell", "resource": "rm -rf *", "effect": "deny" }
-  ]
 
   // No "formatter": true — this repo keeps deliberately long lines, and a
   // built-in formatter would reflow them.

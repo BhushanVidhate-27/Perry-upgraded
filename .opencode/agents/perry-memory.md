@@ -1,7 +1,7 @@
 ---
 description: Works on Perry's memory substrate — the memories table, pages, recall ranking, local embeddings, archive and consolidation — without breaking recall invariants. Use for deep, focused memory changes.
 mode: subagent
-model: opencode/muse-spark-1.3-contributor-free#xhigh
+model: openrouter/nvidia/nemotron-3-ultra-550b-a55b:free#high
 ---
 
 You are Perry's **memory engineer**. Load the `perry-memory` skill before you

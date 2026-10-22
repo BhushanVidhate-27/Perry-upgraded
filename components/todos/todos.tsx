@@ -1,10 +1,13 @@
 "use client";
 
-import { AlarmClockIcon, FlameIcon, PlusIcon, RepeatIcon, SparklesIcon, XIcon } from "lucide-react";
+import { AlarmClockIcon, CalendarClockIcon, FlameIcon, PencilIcon, PlusIcon, RepeatIcon, SparklesIcon, XIcon } from "lucide-react";
 import { useState, type FormEvent } from "react";
+import { toast } from "sonner";
 import { useMutation } from "@/client/react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -84,7 +87,7 @@ export function StreakBadge({ days }: { days: number }) {
   );
 }
 
-export function TodoRows({ todos, now, compact, onDone }: { todos: TodoView[]; now: number; compact?: boolean; onDone?: (todo: TodoView) => void }) {
+export function TodoRows({ todos, now, compact, onDone, onEdit }: { todos: TodoView[]; now: number; compact?: boolean; onDone?: (todo: TodoView) => void; onEdit?: (todo: TodoView) => void }) {
   const key = useDashboardKey();
   const setDone = useMutation(api.todos.setDone);
   const remove = useMutation(api.todos.remove);
@@ -101,7 +104,7 @@ export function TodoRows({ todos, now, compact, onDone }: { todos: TodoView[]; n
               checked={done}
               aria-label={done ? `Put back “${todo.title}”` : `Done: “${todo.title}”`}
               onCheckedChange={() => {
-                void setDone({ key, id: todo.id, done: !done }).catch(() => {});
+                void setDone({ key, id: todo.id, done: !done }).catch((cause) => toast.error(errorText(cause)));
                 if (!done) onDone?.(todo);
               }}
               className="size-[18px] cursor-pointer rounded-full border-[1.5px] border-muted-foreground/45 hover:border-primary hover:bg-primary/10 data-checked:hover:bg-primary [&_[data-slot=checkbox-indicator]>svg]:size-3 [&_svg]:stroke-3"
@@ -117,7 +120,11 @@ export function TodoRows({ todos, now, compact, onDone }: { todos: TodoView[]; n
                 {dueLabel(todo.dueAt, now)}
               </span>
             )}
-            <Button variant="ghost" size="icon-xs" aria-label={`Remove “${todo.title}”`} onClick={() => void remove({ key, id: todo.id }).catch(() => {})}
+            {!done && onEdit && <Button variant="ghost" size="icon-xs" aria-label={`Edit “${todo.title}”`} onClick={() => onEdit(todo)}
+              className="text-muted-foreground opacity-0 focus-visible:opacity-100 group-hover:opacity-100">
+              <PencilIcon className="size-3.5" />
+            </Button>}
+            <Button variant="ghost" size="icon-xs" aria-label={`Remove “${todo.title}”`} onClick={() => void remove({ key, id: todo.id }).catch((cause) => toast.error(errorText(cause)))}
               className="text-muted-foreground opacity-0 focus-visible:opacity-100 group-hover:opacity-100">
               <XIcon className="size-3.5" />
             </Button>
@@ -125,6 +132,86 @@ export function TodoRows({ todos, now, compact, onDone }: { todos: TodoView[]; n
         );
       })}
     </ul>
+  );
+}
+
+function localParts(at: number | undefined): { date: string; time: string } {
+  if (!at) return { date: "", time: "" };
+  const value = new Date(at);
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return { date: `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`, time: `${pad(value.getHours())}:${pad(value.getMinutes())}` };
+}
+
+/** Edit a todo without making the owner retype it in chat. The backend keeps reminder state consistent. */
+export function TodoEditDialog({ todo, onClose }: { todo: TodoView | null; onClose: () => void }) {
+  const key = useDashboardKey();
+  const edit = useMutation(api.todos.edit);
+  const [title, setTitle] = useState("");
+  const [date, setDate] = useState("");
+  const [time, setTime] = useState("");
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const open = (next: TodoView | null) => {
+    if (!next) return;
+    const parts = localParts(next.dueAt);
+    setTitle(next.title); setDate(parts.date); setTime(parts.time); setError("");
+  };
+  // Dialog content is kept mounted by Base UI while open changes, so sync when a new row is selected.
+  const [loadedId, setLoadedId] = useState<string>();
+  if (todo && todo.id !== loadedId) { setLoadedId(todo.id); open(todo); }
+
+  const save = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!todo) return;
+    const clean = title.replace(/\s+/g, " ").trim();
+    if (!clean) { setError("A to-do needs something to do."); return; }
+    let dueAt: number | null = null;
+    if (date) {
+      const value = new Date(`${date}T${time || "09:00"}`);
+      if (Number.isNaN(value.getTime())) { setError("Choose a valid date and time."); return; }
+      dueAt = value.getTime();
+    }
+    setSaving(true); setError("");
+    try {
+      await edit({ key, id: todo.id, title: clean, dueAt });
+      toast.success("To-do updated.");
+      onClose();
+    } catch (cause) {
+      setError(errorText(cause));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={todo !== null} onOpenChange={(next) => { if (!next && !saving) onClose(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Edit to-do</DialogTitle>
+          <DialogDescription>Change the wording or reminder time. Repeating schedules stay unchanged.</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={(event) => void save(event)} className="space-y-4">
+          <label className="grid gap-1.5 text-sm font-medium" htmlFor="todo-title">What needs doing?
+            <Input id="todo-title" value={title} onChange={(event) => setTitle(event.target.value)} autoFocus maxLength={200} />
+          </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="grid gap-1.5 text-sm font-medium" htmlFor="todo-date">Date
+              <span className="relative"><CalendarClockIcon className="pointer-events-none absolute top-2 left-2.5 size-4 text-muted-foreground" aria-hidden /><Input id="todo-date" type="date" value={date} onChange={(event) => setDate(event.target.value)} className="pl-9" /></span>
+            </label>
+            <label className="grid gap-1.5 text-sm font-medium" htmlFor="todo-time">Time
+              <Input id="todo-time" type="time" value={time} onChange={(event) => setTime(event.target.value)} disabled={!date} />
+            </label>
+          </div>
+          {!date && <p className="text-xs text-muted-foreground">No date means this stays on your list without reminders.</p>}
+          {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={onClose} disabled={saving}>Cancel</Button>
+            <Button type="submit" disabled={saving}>{saving ? "Saving…" : "Save changes"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 

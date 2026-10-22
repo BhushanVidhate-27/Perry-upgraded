@@ -29,6 +29,7 @@ import * as jobs from "../convex/jobs";
 import * as lib_activity from "../convex/lib/activity";
 import * as lib_agent from "../convex/lib/agent";
 import * as lib_auth from "../convex/lib/auth";
+import * as lib_b2 from "../convex/lib/b2";
 import * as lib_browser from "../convex/lib/browser";
 import * as lib_budget from "../convex/lib/budget";
 import * as lib_checkout from "../convex/lib/checkout";
@@ -114,6 +115,7 @@ export const modules: Record<string, Record<string, unknown>> = {
   "lib/activity": lib_activity,
   "lib/agent": lib_agent,
   "lib/auth": lib_auth,
+  "lib/b2": lib_b2,
   "lib/browser": lib_browser,
   "lib/budget": lib_budget,
   "lib/checkout": lib_checkout,

@@ -1,7 +1,7 @@
 ---
 description: Runs Perry's verification gate — typecheck, evals, smoke, doctor — on another agent's changes and reports pass/fail with the artifact path. Read-only; cannot edit files.
 mode: subagent
-model: opencode/ling-3.1-flash-free
+model: openrouter/cohere/north-mini-code:free#thinking
 permissions:
   - action: edit
     resource: "*"

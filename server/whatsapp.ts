@@ -119,7 +119,22 @@ async function baileysDriver(): Promise<Driver> {
 async function loadDriver(): Promise<Driver> {
   const custom = process.env.PERRY_WHATSAPP_DRIVER;
   if (custom) return (await import(/* webpackIgnore: true */ /*turbopackIgnore: true*/ pathToFileURL(custom).href)).default as Driver;
-  return await baileysDriver();
+  try {
+    return await baileysDriver();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (/Cannot find module|MODULE_NOT_FOUND|baileys/.test(message)) {
+      console.warn("[perry] WhatsApp disabled: baileys is not installed (optional dependency).");
+      // A driver that never connects: keeps the loop quiet instead of retrying forever.
+      return {
+        connect: async () => { throw new Error("WhatsApp disabled: baileys not installed"); },
+        download: async () => new Uint8Array(),
+        qrPng: async () => "",
+        loggedOut: () => false,
+      } as unknown as Driver;
+    }
+    throw error;
+  }
 }
 
 type Link = { mode: "self" | "separate"; wanted: boolean; phone?: string; status: string; me?: string } | null;

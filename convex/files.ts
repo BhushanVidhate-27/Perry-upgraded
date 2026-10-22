@@ -3,7 +3,8 @@ import { internal } from "./_generated/api";
 import { internalAction, type ActionCtx } from "./_generated/server";
 import { loadConversation } from "./brain";
 import { saveMessages } from "./lib/agent";
-import { describePath } from "./media";
+import { describePath, b2Creds } from "./media";
+import { b2Download, type B2Creds } from "./lib/b2";
 import { sendFile } from "./lib/telegram";
 import type { Target } from "./channels";
 
@@ -21,7 +22,7 @@ import type { Target } from "./channels";
  * is read out of an arbitrary place on the machine.
  */
 
-/** The largest a file may be to go this way, under Telegram's own 50 MB cap. */
+// The largest a file may be to go this way, under Telegram's own 50 MB cap.
 const MAX_BYTES = 45 * 1024 * 1024;
 
 /** Read a local file as the Blob sendFile uploads. Missing or unreadable is an error the tool shows. */
@@ -37,6 +38,12 @@ async function readFile(path: string): Promise<{ blob: Blob; fileName: string; c
   const bytes = await read(path);
   const { fileName, contentType } = describePath(path);
   return { blob: new Blob([bytes], { type: contentType }), fileName, contentType };
+}
+
+/** Download a B2 file and return it as a Blob for sending via Telegram. */
+async function readB2File(creds: B2Creds, fileName: string): Promise<{ blob: Blob; contentType: string }> {
+  const { bytes, contentType } = await b2Download(creds, fileName);
+  return { blob: new Blob([Buffer.from(bytes)], { type: contentType }), contentType };
 }
 
 /**
@@ -58,16 +65,17 @@ async function ownerTelegram(ctx: ActionCtx): Promise<{ chatId: string; conversa
 }
 
 /**
- * Send one file from this computer to the owner's Telegram and keep it in that
- * chat's history, so the turn that sent it and the next turn there both know a
- * file went. `path` is the file on disk (a saved file, or a look the pet took;
- * a Library item is resolved to its file by the tool before it gets here). The
- * token comes from the saved secret, never from the caller.
+ * Send one file to the owner's Telegram and keep it in that chat's history,
+ * so the turn that sent it and the next turn there both know a file went.
+ * `path` is a local file on disk; `b2FileId` is a file in B2 Blackblaze
+ * storage. The token comes from the saved secret, never from the caller.
  */
 export const toOwner = internalAction({
   args: {
     /** Absolute path on this computer of the file to send (a saved file, or a look the pet took). */
-    path: v.string(),
+    path: v.optional(v.string()),
+    /** B2 file name to download from Blackblaze and send (when the file lives in the cloud). */
+    b2FileName: v.optional(v.string()),
     /** What the file is, in a few words: the dashboard shows it beside the send. */
     why: v.string(),
     /** A note under the file on Telegram (Markdown, sent as HTML). */
@@ -80,26 +88,43 @@ export const toOwner = internalAction({
     v.object({ error: v.string() }),
   ),
   handler: async (ctx, args): Promise<{ sent: boolean; name: string; note?: string } | { error: string }> => {
-    const path = args.path;
     try {
       const owner = await ownerTelegram(ctx);
-      const file = await readFile(path);
       const token: string | null = await ctx.runQuery(internal.secrets.get, { name: "TELEGRAM_BOT_TOKEN" });
       if (!token) return { error: "There is no Telegram bot set up to send this from. The owner can add one in Settings → Telegram." };
+
+      let fileName: string;
+      let file: { blob: Blob; contentType: string };
+
+      if (args.b2FileName) {
+        const creds = await b2Creds(ctx);
+        if (!creds) return { error: "No B2 credentials configured. Set B2_KEY_ID, B2_APPLICATION_KEY and B2_BUCKET_NAME in Settings → Logins & secrets." };
+        file = await readB2File(creds, args.b2FileName);
+        fileName = args.b2FileName;
+      } else {
+        if (!args.path) return { error: "Give a file path or a B2 file name." };
+        const local = await readFile(args.path);
+        file = local;
+        fileName = local.fileName;
+      }
+
+      if (file.blob.size > MAX_BYTES) throw new Error(`${fileName} is over Telegram's 50 MB limit for bots.`);
+
       await sendFile(token, owner.chatId, {
         blob: file.blob,
-        fileName: file.fileName,
+        fileName,
         contentType: file.contentType,
         ...(args.caption ? { caption: args.caption } : {}),
       });
+
       // It belongs to that chat: shown in its history and told to the next turn there, as notify does for words.
       const conversation = await ctx.runQuery(internal.conversations.getByExternalId, { channel: "telegram", externalId: owner.chatId });
       const chat = conversation ?? (await loadConversation(ctx, "telegram", owner.chatId));
       await saveMessages(ctx, {
         threadId: chat.threadId,
-        messages: [{ role: "assistant", content: `Sent the owner ${file.fileName} on Telegram (${args.why}).` }],
+        messages: [{ role: "assistant", content: `Sent the owner ${fileName} on Telegram (${args.why}).` }],
       });
-      return { sent: true, name: file.fileName };
+      return { sent: true, name: fileName };
     } catch (error) {
       return { error: error instanceof Error ? error.message : String(error) };
     }

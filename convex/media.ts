@@ -1,14 +1,20 @@
 import { v } from "convex/values";
-import { internalMutation, internalQuery, query } from "./_generated/server";
+import { internal } from "./_generated/api";
+import { internalMutation, internalQuery, query, type ActionCtx, type MutationCtx, type QueryCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { assertDashboardKey } from "./lib/auth";
 import { index } from "./library";
+import { b2Upload, b2Download, type B2Creds } from "./lib/b2";
 
 /**
  * Local media: chat files that stay on the owner's machine, wherever the agent
  * or the upload inbox put them. The row records the absolute path; the Next.js
  * server on that machine serves the file from there, by attachment id, and
  * only for rows that exist, so nothing unregistered is ever reachable.
+ *
+ * Files can also live in B2 Blackblaze cloud storage (b2FileId on the row),
+ * which is what Perry uses when deployed to Render. B2 credentials come from
+ * the owner's saved secrets (B2_KEY_ID, B2_APPLICATION_KEY, B2_BUCKET_NAME).
  */
 export const ABSOLUTE_PATH = /^(?:[a-zA-Z]:[\\/]|\\\\|\/)/;
 
@@ -33,11 +39,26 @@ export function describePath(path: string): { fileName: string; contentType: str
 const attachmentShape = v.object({
   url: v.optional(v.string()),
   localPath: v.optional(v.string()),
+  b2FileId: v.optional(v.string()),
   fileName: v.string(),
   contentType: v.string(),
 });
 
-/** Resolve a queued turn's files without exposing storage ids. Local files go by path. */
+/** B2 credential names kept in the owner's Logins & secrets. */
+const B2_KEY_ID_SECRET = "B2_KEY_ID";
+const B2_APP_KEY_SECRET = "B2_APPLICATION_KEY";
+const B2_BUCKET_SECRET = "B2_BUCKET_NAME";
+
+/** Resolve B2 credentials from the owner's saved secrets. */
+export async function b2Creds(ctx: ActionCtx | MutationCtx | QueryCtx): Promise<B2Creds | null> {
+  const keyId = await ctx.runQuery(internal.secrets.get, { name: B2_KEY_ID_SECRET });
+  const appKey = await ctx.runQuery(internal.secrets.get, { name: B2_APP_KEY_SECRET });
+  const bucket = await ctx.runQuery(internal.secrets.get, { name: B2_BUCKET_SECRET });
+  if (!keyId || !appKey || !bucket) return null;
+  return { keyId, applicationKey: appKey, bucketName: bucket };
+}
+
+/** Resolve a queued turn's files without exposing storage ids. Local files go by path; B2 files get a download URL. */
 export const forTurn = internalQuery({
   args: {
     conversationId: v.id("conversations"),
@@ -45,12 +66,17 @@ export const forTurn = internalQuery({
   },
   returns: v.array(attachmentShape),
   handler: async (ctx, args) => {
-    const result: Array<{ url?: string; localPath?: string; fileName: string; contentType: string }> = [];
+    const creds = await b2Creds(ctx);
+    const result: Array<{ url?: string; localPath?: string; b2FileId?: string; fileName: string; contentType: string }> = [];
     for (const id of args.attachmentIds as Id<"chatAttachments">[]) {
       const row = await ctx.db.get(id);
       if (!row || row.conversationId !== args.conversationId || row.removedAt) continue;
       if (row.localPath) {
         result.push({ localPath: row.localPath, fileName: row.fileName, contentType: row.contentType });
+        continue;
+      }
+      if (row.b2FileId && creds) {
+        result.push({ b2FileId: row.b2FileId, fileName: row.fileName, contentType: row.contentType });
         continue;
       }
       const url = row.storageId ? await ctx.storage.getUrl(row.storageId) : null;
@@ -60,19 +86,51 @@ export const forTurn = internalQuery({
   },
 });
 
-/** A file downloaded from Telegram, stored and attached to the message it came with. */
+/** A file downloaded from Telegram, stored and attached to the message it came with. When B2 credentials are
+ * configured, the file bytes are uploaded to B2 Blackblaze and the row keeps the B2 file id. */
 export const attachStored = internalMutation({
   args: {
     conversationId: v.id("conversations"),
     messageKey: v.string(),
-    storageId: v.id("_storage"),
+    storageId: v.optional(v.id("_storage")),
+    /** B2 Blackblaze file id, when the file was already uploaded to B2. */
+    b2FileId: v.optional(v.string()),
+    /** B2: upload these base64-encoded bytes to Blackblaze instead of Convex storage. */
+    bytes: v.optional(v.string()),
     fileName: v.string(),
     contentType: v.string(),
     size: v.number(),
   },
   returns: v.id("chatAttachments"),
   handler: async (ctx, args) => {
-    const id = await ctx.db.insert("chatAttachments", { ...args, createdAt: Date.now() });
+    let b2FileId: string | undefined = args.b2FileId;
+    let storageId: Id<"_storage"> | undefined = args.storageId;
+
+    if (args.bytes && !storageId && !b2FileId) {
+      // Upload to B2 Blackblaze when credentials are configured.
+      const creds = await b2Creds(ctx);
+      if (creds) {
+        const fileBytes = Buffer.from(args.bytes, "base64");
+        b2FileId = await b2Upload(creds, {
+          fileName: args.fileName,
+          contentType: args.contentType,
+          bytes: fileBytes,
+        });
+      } else {
+        throw new Error("No B2 credentials configured. Set B2_KEY_ID, B2_APPLICATION_KEY and B2_BUCKET_NAME in Settings → Logins & secrets.");
+      }
+    }
+
+    const id = await ctx.db.insert("chatAttachments", {
+      conversationId: args.conversationId,
+      messageKey: args.messageKey,
+      ...(storageId ? { storageId } : {}),
+      ...(b2FileId ? { b2FileId } : {}),
+      fileName: args.fileName,
+      contentType: args.contentType,
+      size: args.size,
+      createdAt: Date.now(),
+    });
     await index(ctx, id);
     return id;
   },
