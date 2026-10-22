@@ -347,3 +347,33 @@ export function parseWebCommand(text: string): { url?: string } | null {
   if (!match) return null;
   return { url: match[2] ?? undefined };
 }
+
+// --- Password commands (/password) -----------------------------------------
+
+/** "/password", "/password set <new>", "/password reset", "/password status" (and "/password@botname" on Telegram). */
+export function parsePasswordCommand(text: string): { action: "set" | "reset" | "status"; value?: string } | null {
+  const match = text.trim().match(/^\/(password)(?:@\S+)?(?:\s+(set|reset|status)(?:\s+(\S+))?)?\s*$/i);
+  if (!match) return null;
+  const action = (match[2] ?? "status").toLowerCase() as "set" | "reset" | "status";
+  return { action, value: match[3] ?? undefined };
+}
+
+/** The reply to "/password": password status or confirmation. */
+export function describePassword(configured: boolean): string {
+  if (!configured) {
+    return [
+      "Perry has no password set yet.",
+      "",
+      "The web dashboard is open to anyone who knows the URL.",
+      "",
+      "Set one with /password set <your-password>.",
+    ].join("\n");
+  }
+  return [
+    "Perry is password-protected.",
+    "",
+    "The web dashboard home page requires the password.",
+    "",
+    "Change it with /password set <new-password>, or remove it with /password reset.",
+  ].join("\n");
+}

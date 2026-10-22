@@ -6,8 +6,8 @@ import { internalAction, type ActionCtx } from "./_generated/server";
 import { INSTRUCTIONS } from "./assistant";
 import { ownerClock, ownerNow, QUIET } from "./jobs";
 import {
-  ACCESS_LABELS, chatModel, currentModel, describeAccess, describeEfforts, describeMissed, describeModels, describeStorage, describeSystem, effortUnused, parseAccessCommand,
-  parseMissedCommand, parseModelCommand, parseStorageCommand, parseSystemCommand, parseThinkCommand, parseWebCommand, PAUSED_ERROR, PAUSED_OWNER, PAUSED_REPLY, pickAccess, pickEffort, pickModel, runLabel,
+  ACCESS_LABELS, chatModel, currentModel, describeAccess, describeEfforts, describeMissed, describeModels, describePassword, describeStorage, describeSystem, effortUnused, parseAccessCommand,
+  parseMissedCommand, parseModelCommand, parsePasswordCommand, parseStorageCommand, parseSystemCommand, parseThinkCommand, parseWebCommand, PAUSED_ERROR, PAUSED_OWNER, PAUSED_REPLY, pickAccess, pickEffort, pickModel, runLabel,
   turnEffort, type MissedRun, type ModelOption,
 } from "./lib/commands";
 import { b2Creds } from "./media";
@@ -165,6 +165,26 @@ async function runCommand(
       return `Saved ${webCommand.url} to B2 as ${fileName}.`;
     } catch (error) {
       return `Could not fetch ${webCommand.url}: ${error instanceof Error ? error.message : String(error)}`;
+    }
+  }
+
+  const passwordCommand = parsePasswordCommand(text);
+  if (passwordCommand) {
+    const passwordHash = await ctx.runQuery(internal.secrets.get, { name: "PERRY_PASSWORD" });
+    const configured = Boolean(passwordHash);
+    switch (passwordCommand.action) {
+      case "status":
+        return describePassword(configured);
+      case "set": {
+        if (!passwordCommand.value) return "Usage: /password set <your-password>";
+        await ctx.runMutation(internal.secrets.set, { name: "PERRY_PASSWORD", value: passwordCommand.value });
+        return "Password set. The web dashboard home page now requires it.";
+      }
+      case "reset": {
+        if (!configured) return "No password is set.";
+        await ctx.runMutation(internal.secrets.set, { name: "PERRY_PASSWORD", value: "" });
+        return "Password removed. The web dashboard is open again.";
+      }
     }
   }
 

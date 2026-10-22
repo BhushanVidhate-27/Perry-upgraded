@@ -17,6 +17,7 @@ import { internalMutation, internalQuery } from "./_generated/server";
 
 export const SECRET_NAMES = [
   "TELEGRAM_BOT_TOKEN",
+  "PERRY_PASSWORD",
   "COMPOSIO_API_KEY",
   "GEMINI_API_KEY",
   "PIPELINE_URL",
@@ -33,6 +34,10 @@ export const SECRET_LABELS: Record<SecretName, { label: string; hint: string }> 
   TELEGRAM_BOT_TOKEN: {
     label: "Telegram bot token",
     hint: "From @BotFather.",
+  },
+  PERRY_PASSWORD: {
+    label: "Perry password",
+    hint: "Protects the web dashboard home page.",
   },
   COMPOSIO_API_KEY: {
     label: "Composio key",
