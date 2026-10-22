@@ -1,7 +1,8 @@
+node_modules
+**/node_modules
+.next
 .git
 .gitignore
-.next
-node_modules
 data
 .perry
 *.log
@@ -9,8 +10,3 @@ data
 .env.local
 .env.*.local
 artifacts
-film
-site
-pet
-evals
-cloud
