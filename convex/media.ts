@@ -51,9 +51,11 @@ const B2_BUCKET_SECRET = "B2_BUCKET_NAME";
 
 /** Resolve B2 credentials from the owner's saved secrets. */
 export async function b2Creds(ctx: ActionCtx | MutationCtx | QueryCtx): Promise<B2Creds | null> {
-  const keyId = await ctx.runQuery(internal.secrets.get, { name: B2_KEY_ID_SECRET });
-  const appKey = await ctx.runQuery(internal.secrets.get, { name: B2_APP_KEY_SECRET });
-  const bucket = await ctx.runQuery(internal.secrets.get, { name: B2_BUCKET_SECRET });
+  // Secrets set from the chat win; environment variables keep a host that has
+  // no disk (and so loses its database on every restart) connected.
+  const keyId = (await ctx.runQuery(internal.secrets.get, { name: B2_KEY_ID_SECRET })) || process.env.B2_KEY_ID;
+  const appKey = (await ctx.runQuery(internal.secrets.get, { name: B2_APP_KEY_SECRET })) || process.env.B2_APPLICATION_KEY;
+  const bucket = (await ctx.runQuery(internal.secrets.get, { name: B2_BUCKET_SECRET })) || process.env.B2_BUCKET_NAME;
   if (!keyId || !appKey || !bucket) return null;
   return { keyId, applicationKey: appKey, bucketName: bucket };
 }

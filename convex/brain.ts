@@ -132,7 +132,11 @@ async function runCommand(
         if (!storageCommand.name) return "Usage: /storage del <name>";
         if (!creds) return "B2 is not configured yet.";
         try {
-          await b2Delete(creds, { fileId: storageCommand.name, fileName: storageCommand.name });
+          // B2 deletes by file id, not name, so find the name's newest version first.
+          const files = await b2List(creds, { max: 1000 });
+          const file = files.find((item) => item.fileName === storageCommand.name);
+          if (!file) return `No file named ${storageCommand.name} in B2.`;
+          await b2Delete(creds, { fileId: file.fileId, fileName: file.fileName });
           return `Deleted ${storageCommand.name} from B2.`;
         } catch (error) {
           return `Could not delete ${storageCommand.name}: ${error instanceof Error ? error.message : String(error)}`;

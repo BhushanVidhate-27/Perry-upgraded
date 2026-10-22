@@ -38,6 +38,8 @@ type B2Session = {
   downloadUrl: string;
   authorizationToken: string;
   accountId: string;
+  /** The bucket's id, which every bucket-scoped call needs. A key limited to one bucket reports it here. */
+  bucketId: string;
   authorizedAt: number;
 };
 
@@ -77,6 +79,7 @@ async function authorize(creds: B2Creds): Promise<B2Session> {
     accountId?: string;
     absoluteMinimumPartSize?: number;
     recommendedPartSize?: number;
+    allowed?: { bucketId?: string; bucketName?: string };
   };
   if (!json.apiUrl || !json.downloadUrl || !json.authorizationToken || !json.accountId) {
     throw new Error(`B2 authorize returned incomplete response: ${JSON.stringify(json).slice(0, 200)}`);
@@ -87,6 +90,7 @@ async function authorize(creds: B2Creds): Promise<B2Session> {
     downloadUrl: json.downloadUrl.replace(/\/+$/, ""),
     authorizationToken: json.authorizationToken,
     accountId: json.accountId,
+    bucketId: json.allowed?.bucketId ?? "",
     authorizedAt: Date.now(),
   };
   sessionCache.set(cacheKey, session);
@@ -108,7 +112,7 @@ async function getUploadUrl(creds: B2Creds): Promise<B2UploadUrl> {
       Authorization: session.authorizationToken,
       "content-type": "application/json",
     },
-    body: JSON.stringify({ bucketId: creds.bucketName }),
+    body: JSON.stringify({ bucketId: session.bucketId || creds.bucketName }),
   });
   if (!response.ok) {
     const text = await response.text().catch(() => "");
@@ -117,15 +121,17 @@ async function getUploadUrl(creds: B2Creds): Promise<B2UploadUrl> {
   const json = (await response.json()) as {
     uploadUrl?: string;
     uploadAuthorizationToken?: string;
+    authorizationToken?: string;
     bucketId?: string;
   };
-  if (!json.uploadUrl || !json.uploadAuthorizationToken || !json.bucketId) {
+  const uploadAuthorizationToken = json.uploadAuthorizationToken ?? json.authorizationToken;
+  if (!json.uploadUrl || !uploadAuthorizationToken || !json.bucketId) {
     throw new Error(`B2 get_upload_url returned incomplete response: ${JSON.stringify(json).slice(0, 200)}`);
   }
 
   const info: B2UploadUrl & { fetchedAt: number } = {
     uploadUrl: json.uploadUrl.replace(/\/+$/, ""),
-    uploadAuthorizationToken: json.uploadAuthorizationToken,
+    uploadAuthorizationToken,
     bucketId: json.bucketId,
     fetchedAt: Date.now(),
   };
@@ -193,7 +199,11 @@ export async function b2Download(
   fileName: string,
 ): Promise<{ bytes: Uint8Array; contentType: string }> {
   const session = await authorize(creds);
-  const response = await fetch(`${session.downloadUrl}/file/${creds.bucketName}/${encodeURIComponent(fileName)}`);
+  // The bucket is private: the download host without a token answers 401.
+  const response = await fetch(
+    `${session.downloadUrl}/file/${encodeURIComponent(creds.bucketName)}/${encodeURIComponent(fileName)}`,
+    { headers: { Authorization: session.authorizationToken } },
+  );
   if (!response.ok) {
     const text = await response.text().catch(() => "");
     throw new Error(`B2 download failed (${response.status}): ${text}`);
@@ -209,7 +219,7 @@ export async function b2List(
   { max = 100, startFileName }: { max?: number; startFileName?: string },
 ): Promise<Array<{ fileId: string; fileName: string; size: number; contentType?: string; uploadedAt: number }>> {
   const session = await authorize(creds);
-  const body: { bucketId: string; maxFileCount?: number; startFileName?: string } = { bucketId: creds.bucketName, maxFileCount: max };
+  const body: { bucketId: string; maxFileCount?: number; startFileName?: string } = { bucketId: session.bucketId || creds.bucketName, maxFileCount: max };
   if (startFileName) body.startFileName = startFileName;
 
   const response = await fetch(`${session.apiUrl}/b2api/v2/b2_list_file_names`, {
@@ -229,6 +239,7 @@ export async function b2List(
       fileId?: string;
       fileName?: string;
       size?: number;
+      contentLength?: number;
       contentType?: string;
       uploadTimestamp?: number;
     }>;
@@ -237,7 +248,7 @@ export async function b2List(
   return (json.files ?? []).map((file) => ({
     fileId: file.fileId ?? "",
     fileName: file.fileName ?? "",
-    size: file.size ?? 0,
+    size: file.size ?? file.contentLength ?? 0,
     contentType: file.contentType,
     uploadedAt: file.uploadTimestamp ?? 0,
   }));
