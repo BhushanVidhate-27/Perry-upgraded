@@ -54,8 +54,10 @@ set `PERRY_HOME=/data/.perry`, mount the disk at `/data`, and drop
 
 ## Deploy
 
-Pushes to `main` auto-deploy. `render.yaml` describes the same service.
-Manual: `render deploys create srv-dbd471ui0phs73em5q50`.
+`render.yaml` describes the same service. Auto-deploy is on, but the service
+was created through the API and the Render GitHub App is not connected to the
+repo, so a push did not start a build: trigger one from the dashboard (Manual
+Deploy) or with `render deploys create srv-dbd471ui0phs73em5q50`.
 Health: `GET /api/backend/http/health` → `{"ok":true,"service":"perry"}`.
 
 ## Model
