@@ -134,7 +134,14 @@ export class OpenCodeEngine extends AcpEngine {
   /** OpenCode's bundled (`opencode/`) models, from `opencode models`, with the efforts sessions have taught it. */
   private async bundledModels(): Promise<EngineModel[]> {
     if (!this.listed || Date.now() - this.listed.at > 2 * 60_000) {
-      const ran = await runCli(this.cli, ["models"], 30_000);
+      // A fresh container has no OpenCode service yet: the first ask starts it
+      // and can come back with "plugins did not finish activating". Retry
+      // before deciding the engine is signed out.
+      let ran = await runCli(this.cli, ["models"], 30_000);
+      for (let attempt = 0; ran.code !== 0 && attempt < 4; attempt++) {
+        await new Promise((resolve) => setTimeout(resolve, 4000));
+        ran = await runCli(this.cli, ["models"], 30_000);
+      }
       if (ran.code !== 0) throw new Error(ran.stderr.trim().split("\n")[0] || "opencode models failed.");
       const learned = new Map(this.learnedModels().map((model) => [model.id, model]));
       const models = ran.stdout.split("\n").map((line) => line.trim())
