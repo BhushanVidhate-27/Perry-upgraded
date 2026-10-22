@@ -212,6 +212,45 @@ export const startPairing = internalMutation({
   },
 });
 
+/**
+ * Claim the owner up front on a deployment that already knows who they are.
+ *
+ * A host with no disk (Render's free plan) starts a fresh install on every
+ * restart, so an owner paired once would be asked for a code again after each
+ * deploy. PERRY_OWNER_TELEGRAM_ID names them instead; a local install leaves
+ * it unset and pairs with a code as before. Existing claims are left alone.
+ */
+export const claimFromEnvironment = internalMutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const id = process.env.PERRY_OWNER_TELEGRAM_ID?.trim();
+    if (!id) return null;
+    const name = process.env.PERRY_OWNER_NAME?.trim() || undefined;
+    const install = await read(ctx);
+    if (!install) {
+      await ctx.db.insert("installation", {
+        ...fresh(),
+        ownerChannel: "telegram",
+        ownerExternalId: id,
+        ownerName: name,
+        claimedAt: Date.now(),
+      });
+      return null;
+    }
+    if (install.claimedAt && install.ownerExternalId) return null;
+    await ctx.db.patch(install._id, {
+      ownerChannel: "telegram",
+      ownerExternalId: id,
+      ownerName: name ?? install.ownerName,
+      claimedAt: install.claimedAt ?? Date.now(),
+      pairingCode: undefined,
+      pairingExpiresAt: undefined,
+    });
+    return null;
+  },
+});
+
 export type ClaimResult =
   | { outcome: "claimed"; }
   | { outcome: "already-owner" }

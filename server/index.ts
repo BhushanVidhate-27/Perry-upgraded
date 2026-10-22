@@ -234,6 +234,8 @@ export async function startBackend() {
   await runtime.runMutation("installation:ensure", {}, { internal: true });
   await engineFromSetup(runtime);
   await engineFromEnvironment(runtime);
+  // A host with no disk starts fresh each time: claim the owner it was told about instead of asking for a code.
+  await runtime.runMutation("installation:claimFromEnvironment", {}, { internal: true });
   // A chat from before projects that kept its memory to itself becomes a project of its own.
   await runtime.runMutation("projects:migrate", {}, { internal: true });
   // Every note's paragraphs as lines that search finds with the memories (pages.ts); nothing once done.

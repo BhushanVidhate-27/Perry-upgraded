@@ -21,6 +21,8 @@
  *   - `pnpm run service install --dry-run` fails or writes anything  → service dry run
  *   - The `perry` command does not load here, or `perry run` starts
  *     with no connection instead of saying to run `perry setup`      → perry command
+ *   - PERRY_OWNER_TELEGRAM_ID is ignored, or overwrites an owner
+ *     already claimed on the install                                → owner from environment
  *
  * Not covered here: Codex itself, its sandbox and sign-in (`pnpm run doctor
  * -- --machine`), and a real chat turn (artifacts/multi-platform/run.ts).
@@ -79,6 +81,31 @@ await check("home", () => {
   const back = readRunnerConfig();
   expect(back.name === "smoke ü" && back.dir === scratch, "runner.json did not round-trip");
   return HOME;
+});
+
+await check("owner from environment", async () => {
+  const { backend } = await import("../server/index");
+  const runtime = backend();
+  const before = { id: process.env.PERRY_OWNER_TELEGRAM_ID, name: process.env.PERRY_OWNER_NAME };
+  try {
+    process.env.PERRY_OWNER_TELEGRAM_ID = "42";
+    process.env.PERRY_OWNER_NAME = "Smoke";
+    await runtime.runMutation("installation:ensure", {}, { internal: true });
+    await runtime.runMutation("installation:claimFromEnvironment", {}, { internal: true });
+    const claimed = (await runtime.runQuery("installation:get", {}, { internal: true })).value as { ownerChannel?: string; ownerExternalId?: string; ownerName?: string } | null;
+    expect(claimed?.ownerChannel === "telegram" && claimed?.ownerExternalId === "42" && claimed?.ownerName === "Smoke", JSON.stringify(claimed));
+    // A deployment restarts with no disk and the same env: the owner it already has is kept, not changed.
+    process.env.PERRY_OWNER_TELEGRAM_ID = "99";
+    await runtime.runMutation("installation:claimFromEnvironment", {}, { internal: true });
+    const again = (await runtime.runQuery("installation:get", {}, { internal: true })).value as { ownerExternalId?: string } | null;
+    expect(again?.ownerExternalId === "42", "an owner already claimed was overwritten");
+    delete process.env.PERRY_OWNER_TELEGRAM_ID;
+    await runtime.runMutation("installation:claimFromEnvironment", {}, { internal: true });
+    return again?.ownerExternalId;
+  } finally {
+    if (before.id === undefined) delete process.env.PERRY_OWNER_TELEGRAM_ID; else process.env.PERRY_OWNER_TELEGRAM_ID = before.id;
+    if (before.name === undefined) delete process.env.PERRY_OWNER_NAME; else process.env.PERRY_OWNER_NAME = before.name;
+  }
 });
 
 await check("machine", () => {
