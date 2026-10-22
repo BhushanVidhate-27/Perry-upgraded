@@ -3,6 +3,9 @@
 # Node 22 because Perry's backend uses the built-in `node:sqlite` module.
 # The dashboard (Next.js) is the server: its instrumentation starts Perry's
 # backend in the same process, and Telegram is polled from there.
+#
+# The runner (Bun) runs beside it in the container and drives OpenCode, whose
+# bundled models are free and need no sign-in, so the bot can answer.
 
 # -------- Base --------
 FROM node:22-alpine AS base
@@ -31,6 +34,12 @@ ENV PORT=7377
 ENV PERRY_HOME=/data/.perry
 ENV PERRY_PORT=7377
 
+# Bun runs runner/index.ts; OpenCode is the engine (opencode/ models are free).
+RUN apk add --no-cache bash curl unzip git
+RUN curl -fsSL https://bun.sh/install | bash -s "bun-v1.1.34"
+RUN curl -fsSL https://opencode.ai/v2/install | bash
+ENV PATH=/root/.bun/bin:/root/.opencode/bin:$PATH
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=build /app/.next ./.next
 COPY --from=build /app/package.json ./package.json
@@ -48,7 +57,8 @@ COPY --from=build /app/lib ./lib
 COPY --from=build /app/client ./client
 COPY --from=build /app/components ./components
 
-VOLUME ["/data"]
-EXPOSE 7377
+COPY --from=build /app/docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh
 
-CMD ["pnpm", "start"]
+EXPOSE 7377
+CMD ["./docker-entrypoint.sh"]
