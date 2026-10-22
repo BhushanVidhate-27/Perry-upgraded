@@ -2,36 +2,36 @@ services:
   - type: web
     name: perry-telegram-bot
     env: docker
+    plan: free
     region: oregon
     branch: main
     dockerfile: ./Dockerfile
     dockerContext: .
-    # Persistent disk for SQLite database + local file storage
-    disk:
-      name: perry-data
-      mountPath: /data
-      sizeGB: 10
-    # Health check — Perry's /health endpoint
     healthCheckPath: /api/backend/http/health
     healthCheckTimeout: 10
     healthCheckInterval: 30
-    healthCheckRestartThreshold: 3
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 7377
-      - key: PERRY_HOME
-        value: /data/.perry
       - key: PERRY_PORT
         value: 7377
+      # Render's free plan has no disk: data lives for the life of the
+      # instance. Move this to a mounted disk (/data/.perry) on a paid plan.
+      - key: PERRY_HOME
+        value: /tmp/perry
+      # A 512 MB instance cannot hold the 300 MB sentence model; memory search
+      # falls back to words. Remove this on a bigger plan.
+      - key: PERRY_EMBEDDING
+        value: "off"
       - key: TELEGRAM_BOT_TOKEN
         sync: false
+      - key: PERRY_PASSWORD
+        sync: false
+      - key: DASHBOARD_KEY
+        generate: true
       - key: B2_KEY_ID
         sync: false
       - key: B2_APPLICATION_KEY
         sync: false
       - key: B2_BUCKET_NAME
         sync: false
-      - key: DASHBOARD_KEY
-        generate: true

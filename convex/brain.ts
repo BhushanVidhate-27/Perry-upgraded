@@ -12,6 +12,7 @@ import {
 } from "./lib/commands";
 import { b2Creds } from "./media";
 import { b2Delete, b2Download, b2List, b2Upload } from "./lib/b2";
+import { clearDashboardPassword, dashboardPassword, setDashboardPassword } from "./lib/dashboardPassword";
 import { describeUsage } from "./lib/usage";
 import { ENGINE_LABELS, type EngineKind } from "./lib/engines";
 import type { Choice } from "./lib/routing";
@@ -170,20 +171,23 @@ async function runCommand(
 
   const passwordCommand = parsePasswordCommand(text);
   if (passwordCommand) {
-    const passwordHash = await ctx.runQuery(internal.secrets.get, { name: "PERRY_PASSWORD" });
-    const configured = Boolean(passwordHash);
+    const configured = Boolean(dashboardPassword());
     switch (passwordCommand.action) {
       case "status":
         return describePassword(configured);
       case "set": {
         if (!passwordCommand.value) return "Usage: /password set <your-password>";
-        await ctx.runMutation(internal.secrets.set, { name: "PERRY_PASSWORD", value: passwordCommand.value });
-        return "Password set. The web dashboard home page now requires it.";
+        setDashboardPassword(passwordCommand.value);
+        return process.env.PERRY_PASSWORD
+          ? "Password saved, but PERRY_PASSWORD is set in the environment and still takes precedence."
+          : "Password set. The web dashboard now requires it.";
       }
       case "reset": {
         if (!configured) return "No password is set.";
-        await ctx.runMutation(internal.secrets.set, { name: "PERRY_PASSWORD", value: "" });
-        return "Password removed. The web dashboard is open again.";
+        clearDashboardPassword();
+        return process.env.PERRY_PASSWORD
+          ? "Password removed, but PERRY_PASSWORD is set in the environment and still applies."
+          : "Password removed. The web dashboard is open again.";
       }
     }
   }

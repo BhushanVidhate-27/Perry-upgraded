@@ -96,9 +96,17 @@ export const embedderReady = (model = EMBED_MODEL) => box.__perryEmbeddersReady!
 /** Why a model last failed to load, if one did. */
 export const embedderError = () => box.__perryEmbedderError;
 
+/**
+ * Set PERRY_EMBEDDING=off where the machine cannot spare the model's memory
+ * (a 512 MB Render instance, for one). Search falls back to words, which is
+ * how it already behaves until the model is downloaded.
+ */
+const disabled = () => process.env.PERRY_EMBEDDING === "off";
+
 /** Unit-length vectors for each text, as questions or as lines, loading (and the first time, downloading) the model if need be. */
 export async function embed(texts: string[], as: "query" | "passage" = "passage", model = EMBED_MODEL): Promise<number[][]> {
   if (texts.length === 0) return [];
+  if (disabled()) throw new Error("Perry's embedding model is off (PERRY_EMBEDDING=off).");
   const info = modelInfo(model);
   const extractor = await load(model);
   const prefix = as === "query" ? info.query : info.passage;
@@ -129,6 +137,7 @@ export function unpackVector(packed: string): number[] {
 
 /** Start loading the model in the background, when it is wanted but not needed yet. */
 export function warmUp(model = EMBED_MODEL) {
+  if (disabled()) return;
   void load(model).catch(() => {});
 }
 
@@ -138,6 +147,7 @@ export function warmUp(model = EMBED_MODEL) {
  * takes, rather than going by words alone. A first download is not waited for.
  */
 export async function readyWithin(ms: number, model = EMBED_MODEL): Promise<boolean> {
+  if (disabled()) return false;
   if (embedderReady(model)) return true;
   const loading = load(model).then(() => true, () => false);
   return await Promise.race([loading, new Promise<boolean>((done) => setTimeout(() => done(false), ms))]);

@@ -1,43 +1,38 @@
-/**
- * Perry login API — verifies the password and sets a session cookie.
- *
- * Reads PERRY_PASSWORD from environment (or .env.local). Can also be
- * changed via Telegram: /password set <new-password>.
- */
-
 import { type NextRequest, NextResponse } from "next/server";
+import { dashboardPassword, passwordMatches, sessionToken } from "@/convex/lib/dashboardPassword";
 
+/**
+ * Checks the dashboard password and, when it matches, sets the session cookie.
+ * The password comes from PERRY_PASSWORD or from /password in Telegram; see
+ * convex/lib/dashboardPassword.ts. No password configured means no one can
+ * log in, so the proxy lets everyone through instead.
+ */
 export async function POST(request: NextRequest) {
+  let password: string;
   try {
-    const { password } = await request.json();
-    const expected = process.env.PERRY_PASSWORD;
-
-    if (!expected) {
-      return NextResponse.json({ error: "No password is configured." }, { status: 400 });
-    }
-
-    // Constant-time comparison
-    if (password.length !== expected.length) {
-      return NextResponse.json({ error: "Wrong password." }, { status: 401 });
-    }
-    let diff = 0;
-    for (let i = 0; i < expected.length; i++) {
-      diff |= password.charCodeAt(i) ^ expected.charCodeAt(i);
-    }
-    if (diff !== 0) {
-      return NextResponse.json({ error: "Wrong password." }, { status: 401 });
-    }
-
-    const response = NextResponse.json({ ok: true });
-    response.cookies.set("perry_session", "authenticated", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 30, // 30 days
-    });
-    return response;
+    ({ password } = (await request.json()) as { password: string });
   } catch {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
+  if (typeof password !== "string") {
+    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+  }
+
+  const expected = dashboardPassword();
+  if (!expected) {
+    return NextResponse.json({ error: "No password is configured." }, { status: 400 });
+  }
+  if (!passwordMatches(password, expected)) {
+    return NextResponse.json({ error: "Wrong password." }, { status: 401 });
+  }
+
+  const response = NextResponse.json({ ok: true });
+  response.cookies.set("perry_session", sessionToken(expected), {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 30,
+  });
+  return response;
 }

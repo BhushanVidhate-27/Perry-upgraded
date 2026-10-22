@@ -1,59 +1,54 @@
-# Perry — Telegram bot with B2 Blackblaze storage, deployed on Render
-# Optimized for minimal RAM usage (512MB Render free tier)
-# Runs standalone Telegram bot (no Next.js dashboard UI)
+# Perry — Telegram bot + web dashboard, deployed on Render.
+#
+# Node 22 because Perry's backend uses the built-in `node:sqlite` module.
+# The dashboard (Next.js) is the server: its instrumentation starts Perry's
+# backend in the same process, and Telegram is polled from there.
 
 # -------- Base --------
-FROM node:20-alpine AS base
+FROM node:22-alpine AS base
 WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 
-# -------- Dependencies (production only) --------
+# -------- Dependencies --------
 FROM base AS deps
 WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
-# --production skips devDependencies; --ignore-scripts skips native build scripts
-RUN pnpm install --production --frozen-lockfile --ignore-scripts
+RUN pnpm install --frozen-lockfile
 
-# -------- Build (needs bun for codegen) --------
-FROM base AS build
+# -------- Build --------
+FROM deps AS build
 WORKDIR /app
-# Install bun only in build stage (not in runtime)
-RUN apk add --no-cache curl && curl -fsSL https://bun.sh/install | bash -s "bun-v1.1.34"
-ENV PATH=/root/.bun/bin:$PATH
-
-COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# Generate Convex types
-RUN pnpm codegen 2>/dev/null || true
-# Build Next.js app (needed for API routes used by dashboard)
-RUN pnpm build 2>/dev/null || true
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN pnpm build
 
-# -------- Run (minimal: standalone Telegram bot, no dashboard UI) --------
+# -------- Run --------
 FROM base AS run
 WORKDIR /app
 ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=7377
 ENV PERRY_HOME=/data/.perry
 ENV PERRY_PORT=7377
-ENV B2_KEY_ID=""
-ENV B2_APPLICATION_KEY=""
-ENV B2_BUCKET_NAME=""
-ENV TELEGRAM_BOT_TOKEN=""
-ENV DASHBOARD_KEY=""
 
-# Copy only production node_modules (no devDeps)
 COPY --from=deps /app/node_modules ./node_modules
-# Copy build output and runtime files
+COPY --from=build /app/.next ./.next
+COPY --from=build /app/package.json ./package.json
+COPY --from=build /app/pnpm-lock.yaml ./pnpm-lock.yaml
+COPY --from=build /app/next.config.ts ./next.config.ts
+COPY --from=build /app/tsconfig.json ./tsconfig.json
+COPY --from=build /app/instrumentation.ts ./instrumentation.ts
+COPY --from=build /app/proxy.ts ./proxy.ts
+COPY --from=build /app/next-env.d.ts ./next-env.d.ts
+COPY --from=build /app/app ./app
 COPY --from=build /app/convex ./convex
 COPY --from=build /app/server ./server
-COPY --from=build /app/instrumentation.ts ./instrumentation.ts
-COPY --from=build /app/package.json ./package.json
-COPY --from=build /app/tsconfig.json ./tsconfig.json
+COPY --from=build /app/runner ./runner
+COPY --from=build /app/lib ./lib
+COPY --from=build /app/client ./client
+COPY --from=build /app/components ./components
 
-# Persistent disk for SQLite database + local file storage
 VOLUME ["/data"]
-
 EXPOSE 7377
 
-# Standalone Telegram bot — no Next.js dashboard, minimal RAM
-CMD ["node", "server/telegram-bot.ts"]
+CMD ["pnpm", "start"]

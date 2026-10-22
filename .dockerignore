@@ -1,0 +1,16 @@
+.git
+.gitignore
+.next
+node_modules
+data
+.perry
+*.log
+.env
+.env.local
+.env.*.local
+artifacts
+film
+site
+pet
+evals
+cloud
