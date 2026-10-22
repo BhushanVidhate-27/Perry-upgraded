@@ -36,7 +36,7 @@ ENV PERRY_PORT=7377
 
 # Bun runs runner/index.ts; OpenCode is the engine (opencode/ models are free).
 RUN apk add --no-cache bash curl unzip git
-RUN curl -fsSL https://bun.sh/install | bash -s "bun-v1.1.34"
+RUN curl -fsSL https://bun.sh/install | bash -s "bun-v1.4.4"
 RUN curl -fsSL https://opencode.ai/v2/install | bash
 ENV PATH=/root/.bun/bin:/root/.opencode/bin:$PATH
 
