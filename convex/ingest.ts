@@ -132,6 +132,21 @@ export const receive = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    const reply = async (text: string) => {
+      await ctx.scheduler.runAfter(0, internal.brain.sendDirect, {
+        chatId: args.chatId,
+        text,
+      });
+    };
+
+    // Before authorize: an install that lost its data has no owner to check yet.
+    const command = args.text.trim().split(/\s+/)[0]?.toLowerCase().replace(/@.*$/, "");
+    if (command === "/pair") {
+      const pairing = await ctx.runMutation(internal.installation.pairFromTelegram, { chatId: args.chatId }) as { message: string };
+      await reply(pairing.message);
+      return null;
+    }
+
     const result: ClaimResult = await ctx.runMutation(
       internal.installation.authorize,
       {
@@ -141,13 +156,6 @@ export const receive = internalMutation({
         text: args.text,
       },
     );
-
-    const reply = async (text: string) => {
-      await ctx.scheduler.runAfter(0, internal.brain.sendDirect, {
-        chatId: args.chatId,
-        text,
-      });
-    };
 
     switch (result.outcome) {
       case "already-owner":
@@ -160,7 +168,8 @@ export const receive = internalMutation({
       case "needs-code":
         await reply(
           "Send me the six digit pairing code from your terminal.\n" +
-            "Lost it? Run: pnpm run pair",
+            "Lost it? Run: pnpm run pair\n" +
+            "From the owner's chat, /pair also works.",
         );
         return null;
 

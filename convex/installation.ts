@@ -183,6 +183,27 @@ export const setDefaultEngine = internalMutation({
   },
 });
 
+async function mintPairingCode(ctx: MutationCtx): Promise<{ code: string; expiresAt: number }> {
+  const code = newPairingCode();
+  const expiresAt = Date.now() + PAIRING_TTL_MS;
+  const existing = await read(ctx);
+
+  if (existing) {
+    await ctx.db.patch(existing._id, {
+      pairingCode: code,
+      pairingExpiresAt: expiresAt,
+    });
+  } else {
+    await ctx.db.insert("installation", {
+      ...fresh(),
+      pairingCode: code,
+      pairingExpiresAt: expiresAt,
+    });
+  }
+
+  return { code, expiresAt };
+}
+
 /**
  * Mint a fresh pairing code. Called by setup, and by the dashboard when the
  * code has expired or the owner wants to move Assistant to a different chat.
@@ -190,25 +211,37 @@ export const setDefaultEngine = internalMutation({
 export const startPairing = internalMutation({
   args: {},
   returns: v.object({ code: v.string(), expiresAt: v.number() }),
-  handler: async (ctx) => {
-    const code = newPairingCode();
-    const expiresAt = Date.now() + PAIRING_TTL_MS;
-    const existing = await read(ctx);
+  handler: async (ctx) => await mintPairingCode(ctx),
+});
 
-    if (existing) {
-      await ctx.db.patch(existing._id, {
-        pairingCode: code,
-        pairingExpiresAt: expiresAt,
-      });
-    } else {
-      await ctx.db.insert("installation", {
-        ...fresh(),
-        pairingCode: code,
-        pairingExpiresAt: expiresAt,
-      });
+/**
+ * Mint a code from the owner's own Telegram chat, so a reset install can be
+ * claimed without a terminal on the machine. Only the chat that already owns
+ * the install, or PERRY_OWNER_TELEGRAM_ID on a deployment that names its
+ * owner, may ask: a fresh bot that let any chat mint a code would be
+ * claimable by whoever messaged first, which is what codes exist to prevent.
+ */
+export const pairFromTelegram = internalMutation({
+  args: { chatId: v.string() },
+  returns: v.object({ message: v.string() }),
+  handler: async (ctx, args) => {
+    const install = await read(ctx);
+    const claimedChat = install?.claimedAt && install.ownerChannel === "telegram" ? install.ownerExternalId : undefined;
+    const configured = process.env.PERRY_OWNER_TELEGRAM_ID?.trim();
+    const ownerChat = claimedChat ?? configured;
+
+    if (!ownerChat) {
+      return { message: "Pairing from Telegram is not set up. Run `pnpm run pair` on the machine." };
+    }
+    if (args.chatId !== ownerChat) {
+      return { message: "Only the owner's chat can pair Perry." };
+    }
+    if (claimedChat) {
+      return { message: `Already paired as ${install?.ownerName ?? "you"}. To move Perry to another chat, unpair it in Settings → Telegram first.` };
     }
 
-    return { code, expiresAt };
+    const { code } = await mintPairingCode(ctx);
+    return { message: `Pairing code: ${code}\nExpires in an hour. Send it here to claim Perry.` };
   },
 });
 

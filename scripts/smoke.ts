@@ -108,6 +108,30 @@ await check("owner from environment", async () => {
   }
 });
 
+await check("pair from telegram", async () => {
+  const { backend } = await import("../server/index");
+  const runtime = backend();
+  const before = { id: process.env.PERRY_OWNER_TELEGRAM_ID, name: process.env.PERRY_OWNER_NAME };
+  try {
+    process.env.PERRY_OWNER_TELEGRAM_ID = "42";
+    process.env.PERRY_OWNER_NAME = "Smoke";
+    await runtime.runMutation("installation:unclaim", {}, { internal: true });
+    const stranger = await runtime.runMutation("installation:pairFromTelegram", { chatId: "99" }, { internal: true }) as { message: string };
+    expect(!/\b\d{6}\b/.test(stranger.message), `a stranger got a code: ${stranger.message}`);
+    const owner = await runtime.runMutation("installation:pairFromTelegram", { chatId: "42" }, { internal: true }) as { message: string };
+    const code = owner.message.match(/\b(\d{6})\b/)?.[1];
+    expect(code, `no code in: ${owner.message}`);
+    const claimed = await runtime.runMutation("installation:authorize", { channel: "telegram", externalId: "42", name: "Smoke", text: code! }, { internal: true }) as { outcome: string };
+    expect(claimed.outcome === "claimed", `the code did not claim: ${claimed.outcome}`);
+    const again = await runtime.runMutation("installation:pairFromTelegram", { chatId: "42" }, { internal: true }) as { message: string };
+    expect(/already paired/i.test(again.message), `a second /pair minted another code: ${again.message}`);
+    return "owner-only, code claims";
+  } finally {
+    if (before.id === undefined) delete process.env.PERRY_OWNER_TELEGRAM_ID; else process.env.PERRY_OWNER_TELEGRAM_ID = before.id;
+    if (before.name === undefined) delete process.env.PERRY_OWNER_NAME; else process.env.PERRY_OWNER_NAME = before.name;
+  }
+});
+
 await check("machine", () => {
   const machine = describeMachine();
   const expected = { win32: /^Windows /, darwin: /^macOS /, linux: /\(Linux / }[process.platform as "win32" | "darwin" | "linux"];

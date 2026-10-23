@@ -50,6 +50,10 @@ Your private assistant.
   /compact  shrink what I carry of this chat, keep the chat
   /note     /note <words> adds them to your Inbox note; /note alone saves my last reply as a note
   /status   plumbing and recent errors
+  /start-vm start the Azure VM
+  /stop-vm  save state and deallocate the Azure VM
+  /status-vm show Azure VM state
+  /pair     get a fresh pairing code here, in the owner's chat
   /reset    save this chat to memory, then start a fresh one
   /help     this
 
@@ -204,6 +208,27 @@ async function runCommand(
     case "/start":
     case "/help":
       return HELP;
+
+    case "/start-vm":
+    case "/stop-vm":
+    case "/status-vm": {
+      const endpoint = process.env.PERRY_VM_CONTROL_URL;
+      const key = process.env.PERRY_VM_CONTROL_KEY;
+      if (!endpoint || !key) return "VM control is not configured.";
+      const action = command === "/start-vm" ? "start" : command === "/stop-vm" ? "stop" : "status";
+      try {
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-perry-control-key": key },
+          body: JSON.stringify({ action }),
+        });
+        const result = await response.json() as { ok?: boolean; message?: string; error?: string };
+        if (!response.ok || !result.ok) return `VM control failed: ${result.error ?? `HTTP ${response.status}`}`;
+        return result.message ?? "VM command accepted.";
+      } catch (error) {
+        return `VM control failed: ${error instanceof Error ? error.message : String(error)}`;
+      }
+    }
 
     case "/pause": {
       const done: { changed: boolean; stopped: number } = await ctx.runMutation(internal.pause.pauseFrom, { by: conversation.channel === "whatsapp" ? "whatsapp" : "telegram" });

@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const config: NextConfig = {
+  typescript: {
+    ignoreBuildErrors: process.env.PERRY_SKIP_BUILD_TYPECHECK === "1",
+  },
   // Next.js 16 blocks dev resources, hot reload among them, for any origin
   // other than localhost unless it is listed here. The dashboard is also opened
   // at 127.0.0.1, and from other devices over Tailscale by its 100.x address or

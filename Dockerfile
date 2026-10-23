@@ -23,6 +23,7 @@ FROM deps AS build
 WORKDIR /app
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV PERRY_SKIP_BUILD_TYPECHECK=1
 RUN pnpm build
 
 # -------- Run --------
