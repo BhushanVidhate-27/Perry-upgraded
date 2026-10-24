@@ -1,0 +1,183 @@
+{
+  "id": "remembers-and-recalls",
+  "description": "Remembers a fact in one chat, recalls it in a fresh one, then forgets it when asked.",
+  "tags": [
+    "memory"
+  ],
+  "verdict": "passed",
+  "assertions": [
+    {
+      "name": "calledTool(remember)",
+      "score": 1,
+      "severity": "gate",
+      "passed": true,
+      "errored": false,
+      "metadata": {
+        "calls": 1
+      }
+    },
+    {
+      "name": "includes(Dozonipe)",
+      "score": 1,
+      "severity": "gate",
+      "passed": true,
+      "errored": false
+    },
+    {
+      "name": "similarity [just the name]",
+      "score": 1,
+      "severity": "soft",
+      "passed": true,
+      "errored": false,
+      "message": "expected similarity to \"Dozonipe\"; received \"Dozonipe\""
+    },
+    {
+      "name": "calledTool(forget)",
+      "score": 1,
+      "severity": "gate",
+      "passed": true,
+      "errored": false,
+      "metadata": {
+        "calls": 1
+      }
+    },
+    {
+      "name": "equals [gone from memory]",
+      "score": 1,
+      "severity": "gate",
+      "passed": true,
+      "errored": false
+    }
+  ],
+  "turns": [
+    {
+      "chatId": "at37de5m8wfhb39726mfb4nz6r",
+      "prompt": "This is an automated test. Please remember this for later: my houseplant is called Dozonipe.",
+      "message": "Remembered — your houseplant is called Dozonipe. 🌿",
+      "toolCalls": [
+        "execute",
+        "execute",
+        "remember"
+      ],
+      "run": {
+        "id": "esxd57t5r2z827ba2t0crxekpc",
+        "sessionId": "at37de5m8wfhb39726mfb4nz6r",
+        "threadId": "qb0f81xzram3tfv1x3yc9ttjz1",
+        "chatTitle": "Remembering Dozonipe the Houseplant",
+        "channel": "web",
+        "prompt": "This is an automated test. Please remember this for later: my houseplant is called Dozonipe.",
+        "status": "ok",
+        "steps": 1,
+        "toolCalls": [
+          "execute",
+          "execute",
+          "remember"
+        ],
+        "model": "opencode/opencode/beam-free · default",
+        "route": {
+          "engine": "opencode",
+          "tier": "standard",
+          "by": "auto",
+          "why": "Standard tier, for a chat: opencode/beam-free at default. On OpenCode, your default engine, which has room.",
+          "model": "opencode/beam-free",
+          "effort": "default"
+        },
+        "totalTokens": 64218,
+        "usage": {
+          "inputTokens": 17142,
+          "cachedInputTokens": 46528,
+          "outputTokens": 166,
+          "reasoningTokens": 382,
+          "totalTokens": 64218
+        },
+        "startedAt": 1792854902586,
+        "durationMs": 7973
+      },
+      "elapsedMs": 7993
+    },
+    {
+      "chatId": "w8tz4hvj0tradcz4pwxzqpymmv",
+      "prompt": "This is an automated test. What is my houseplant called? Reply with just its name.",
+      "message": "Dozonipe",
+      "toolCalls": [],
+      "run": {
+        "id": "9xppftftjnp837d9tb1wb2eah9",
+        "sessionId": "w8tz4hvj0tradcz4pwxzqpymmv",
+        "threadId": "z8q5c4geykwwqn51h17skq5sv2",
+        "chatTitle": "This is an automated test. What is my houseplant called? Reply with just its nam",
+        "channel": "web",
+        "prompt": "This is an automated test. What is my houseplant called? Reply with just its name.",
+        "status": "ok",
+        "steps": 1,
+        "toolCalls": [],
+        "model": "opencode/opencode/beam-free · default",
+        "route": {
+          "engine": "opencode",
+          "tier": "standard",
+          "by": "auto",
+          "why": "Standard tier, for a chat: opencode/beam-free at default. On OpenCode, your default engine, which has room.",
+          "model": "opencode/beam-free",
+          "effort": "default"
+        },
+        "totalTokens": 14056,
+        "usage": {
+          "inputTokens": 1991,
+          "cachedInputTokens": 11840,
+          "outputTokens": 28,
+          "reasoningTokens": 197,
+          "totalTokens": 14056
+        },
+        "startedAt": 1792854910581,
+        "durationMs": 2258
+      },
+      "elapsedMs": 2275
+    },
+    {
+      "chatId": "w8tz4hvj0tradcz4pwxzqpymmv",
+      "prompt": "This is an automated test, and I confirm the deletion: forget the memory about my houseplant's name. Don't ask me again.",
+      "message": "Done — the memory about your houseplant's name has been deleted.",
+      "toolCalls": [
+        "execute",
+        "forget"
+      ],
+      "run": {
+        "id": "1jtwsfbtsfghc9x3eftve9jqpv",
+        "sessionId": "w8tz4hvj0tradcz4pwxzqpymmv",
+        "threadId": "z8q5c4geykwwqn51h17skq5sv2",
+        "chatTitle": "Houseplant Name Test",
+        "channel": "web",
+        "prompt": "This is an automated test, and I confirm the deletion: forget the memory about my houseplant's name. Don't ask me again.",
+        "status": "ok",
+        "steps": 1,
+        "toolCalls": [
+          "execute",
+          "forget"
+        ],
+        "model": "opencode/opencode/beam-free · default",
+        "route": {
+          "engine": "opencode",
+          "tier": "standard",
+          "by": "auto",
+          "why": "Standard tier, for a chat: opencode/beam-free at default. On OpenCode, your default engine, which has room.",
+          "model": "opencode/beam-free",
+          "effort": "default"
+        },
+        "totalTokens": 48732,
+        "usage": {
+          "inputTokens": 2919,
+          "cachedInputTokens": 45568,
+          "outputTokens": 97,
+          "reasoningTokens": 148,
+          "totalTokens": 48732
+        },
+        "startedAt": 1792854912857,
+        "durationMs": 5229
+      },
+      "elapsedMs": 5244
+    }
+  ],
+  "logs": [],
+  "cleanupErrors": [],
+  "startedAt": "2026-10-24T15:15:02.577Z",
+  "durationMs": 15542
+}

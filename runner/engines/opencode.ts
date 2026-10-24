@@ -85,7 +85,11 @@ export class OpenCodeEngine extends AcpEngine {
       authMethods: [],
       // No session mode stands for an access: leave OpenCode's own (build).
       modes: { supervised: [], auto: [], full: [] },
-      toolsVia: "auto",
+      // OpenCode caches an HTTP MCP server per session and does not reconnect
+      // one whose Perry server restarted, so a chat that outlived a restart had
+      // no Brain tools. The stdio bridge is a fresh child process whose every
+      // call reaches Perry again, so the tools come back with the server.
+      toolsVia: "stdio",
     }, warn);
   }
 

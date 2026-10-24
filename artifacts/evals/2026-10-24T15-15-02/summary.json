@@ -1,0 +1,65 @@
+{
+  "startedAt": "2026-10-24T15:15:02.577Z",
+  "completedAt": "2026-10-24T15:15:18.120Z",
+  "strict": false,
+  "filters": [
+    "remembers-and-recalls"
+  ],
+  "tags": [],
+  "passed": 1,
+  "failed": 0,
+  "scored": 0,
+  "total": 1,
+  "evals": [
+    {
+      "id": "remembers-and-recalls",
+      "verdict": "passed",
+      "durationMs": 15542,
+      "assertions": [
+        {
+          "name": "calledTool(remember)",
+          "score": 1,
+          "severity": "gate",
+          "passed": true,
+          "errored": false,
+          "metadata": {
+            "calls": 1
+          }
+        },
+        {
+          "name": "includes(Dozonipe)",
+          "score": 1,
+          "severity": "gate",
+          "passed": true,
+          "errored": false
+        },
+        {
+          "name": "similarity [just the name]",
+          "score": 1,
+          "severity": "soft",
+          "passed": true,
+          "errored": false,
+          "message": "expected similarity to \"Dozonipe\"; received \"Dozonipe\""
+        },
+        {
+          "name": "calledTool(forget)",
+          "score": 1,
+          "severity": "gate",
+          "passed": true,
+          "errored": false,
+          "metadata": {
+            "calls": 1
+          }
+        },
+        {
+          "name": "equals [gone from memory]",
+          "score": 1,
+          "severity": "gate",
+          "passed": true,
+          "errored": false
+        }
+      ],
+      "cleanupErrors": []
+    }
+  ]
+}
