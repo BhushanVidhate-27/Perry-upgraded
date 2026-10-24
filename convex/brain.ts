@@ -6,7 +6,7 @@ import { internalAction, type ActionCtx } from "./_generated/server";
 import { INSTRUCTIONS } from "./assistant";
 import { ownerClock, ownerNow, QUIET } from "./jobs";
 import {
-  ACCESS_LABELS, chatModel, currentModel, describeAccess, describeEfforts, describeMissed, describeModels, describePassword, describeStorage, describeSystem, effortUnused, parseAccessCommand,
+  ACCESS_LABELS, careerAsk, chatModel, currentModel, describeAccess, describeEfforts, describeMissed, describeModels, describePassword, describeStorage, describeSystem, effortUnused, parseAccessCommand,
   parseMissedCommand, parseModelCommand, parsePasswordCommand, parseStorageCommand, parseSystemCommand, parseThinkCommand, parseWebCommand, PAUSED_ERROR, PAUSED_OWNER, PAUSED_REPLY, pickAccess, pickEffort, pickModel, runLabel,
   turnEffort, type MissedRun, type ModelOption,
 } from "./lib/commands";
@@ -43,6 +43,7 @@ Your private assistant.
   /model    list the models; /model <name> switches this chat
   /think    list the thinking levels; /think <level> sets this chat's
   /access   ask, auto or full: whether it asks before acting
+  /career   job search: /career <mode|job url>, or /career alone for the modes
   /usage    how much of this chat's model plan is used, and what is left
   /stop     stop the reply I am writing
   /pause    stop everything I am doing, and start nothing new
@@ -53,6 +54,7 @@ Your private assistant.
   /start-vm start the Azure VM
   /stop-vm  save state and deallocate the Azure VM
   /status-vm show Azure VM state
+  /restart-vm restart the Azure VM, keeping it running
   /pair     get a fresh pairing code here, in the owner's chat
   /reset    save this chat to memory, then start a fresh one
   /help     this
@@ -211,11 +213,12 @@ async function runCommand(
 
     case "/start-vm":
     case "/stop-vm":
-    case "/status-vm": {
+    case "/status-vm":
+    case "/restart-vm": {
       const endpoint = process.env.PERRY_VM_CONTROL_URL;
       const key = process.env.PERRY_VM_CONTROL_KEY;
       if (!endpoint || !key) return "VM control is not configured.";
-      const action = command === "/start-vm" ? "start" : command === "/stop-vm" ? "stop" : "status";
+      const action = command === "/start-vm" ? "start" : command === "/stop-vm" ? "stop" : command === "/restart-vm" ? "restart" : "status";
       try {
         const response = await fetch(endpoint, {
           method: "POST",
@@ -689,7 +692,9 @@ export const handleTurn = internalAction({
 
     let delegated = false;
     try {
-      const command = !guest && channel !== "web" && !args.fromWeb && args.text.startsWith("/") && !args.telegramMedia?.length && !args.storedMedia?.length;
+      // "/career <mode|job>" is a turn, not plumbing: it names the career-ops skill.
+      const career = guest ? null : careerAsk(args.text);
+      const command = !career && !guest && channel !== "web" && !args.fromWeb && args.text.startsWith("/") && !args.telegramMedia?.length && !args.storedMedia?.length;
       // Paused (pause.ts): a schedule's or task's turn on its way is held for the owner; a message from the phone is
       // answered that Perry is paused, the owner's with how to resume; commands still work, /resume among them.
       // The web app's own messages go on to be refused where the turn is queued, and the chat shows why.
@@ -705,7 +710,7 @@ export const handleTurn = internalAction({
 
       // Telegram files live on Telegram's servers; bring them into storage so
       // they show in the chat and reach Codex like any attachment.
-      let prompt = args.text;
+      let prompt = career ?? args.text;
       const attachmentIds = [...(args.attachmentIds ?? [])];
       if (args.telegramMedia?.length) {
         const messageKey = crypto.randomUUID();

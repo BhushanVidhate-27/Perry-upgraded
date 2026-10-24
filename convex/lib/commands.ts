@@ -348,6 +348,20 @@ export function parseWebCommand(text: string): { url?: string } | null {
   return { url: match[2] ?? undefined };
 }
 
+// --- career-ops (/career) --------------------------------------------------
+
+/**
+ * "/career <mode or job>" is not plumbing: it is the owner's message with the
+ * career-ops skill named, so the engine loads it and everything after "career"
+ * reaches the model. Alone, it asks for the skill's own menu.
+ */
+export function careerAsk(text: string): string | null {
+  const match = text.trim().match(/^\/career(?:@\S+)?(?:\s+([\s\S]*))?$/i);
+  if (!match) return null;
+  const ask = (match[1] ?? "").trim();
+  return ask ? `$career-ops ${ask}` : "$career-ops";
+}
+
 // --- Password commands (/password) -----------------------------------------
 
 /** "/password", "/password set <new>", "/password reset", "/password status" (and "/password@botname" on Telegram). */

@@ -1,4 +1,4 @@
-# Perry — Telegram bot + web dashboard, deployed on Render.
+# Perry — Telegram bot + web dashboard, deployed on an Azure VM.
 #
 # Node 22 because Perry's backend uses the built-in `node:sqlite` module.
 # The dashboard (Next.js) is the server: its instrumentation starts Perry's
@@ -6,9 +6,12 @@
 #
 # The runner (Bun) runs beside it in the container and drives OpenCode, whose
 # bundled models are free and need no sign-in, so the bot can answer.
+#
+# Debian, not Alpine: career-ops renders CV PDFs with Playwright's Chromium,
+# which is built against glibc. Alpine would need a rebuild of the browser.
 
 # -------- Base --------
-FROM node:22-alpine AS base
+FROM node:22-bookworm-slim AS base
 WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 
@@ -36,7 +39,18 @@ ENV PERRY_HOME=/data/.perry
 ENV PERRY_PORT=7377
 
 # Bun runs runner/index.ts; OpenCode is the engine (opencode/ models are free).
-RUN apk add --no-cache bash curl unzip git
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends bash ca-certificates curl git unzip \
+ && rm -rf /var/lib/apt/lists/*
+
+# career-ops (in the workspace, on the volume) renders PDFs with Playwright's
+# Chromium. Baked in at the version career-ops pins, so its own install finds
+# the browser already there and a container recreate needs no download.
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+RUN npm install -g playwright@1.64.1 \
+ && playwright install --with-deps chromium \
+ && rm -rf /var/lib/apt/lists/* /root/.npm
+
 RUN curl -fsSL https://bun.sh/install | bash -s "bun-v1.4.4"
 RUN curl -fsSL https://opencode.ai/v2/install | bash
 ENV PATH=/root/.bun/bin:/root/.opencode/bin:$PATH
