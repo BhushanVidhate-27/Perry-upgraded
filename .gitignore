@@ -20,6 +20,9 @@ next-env.d.ts
 # Cloudflare Wrangler (cloud/read-link) local state
 .wrangler/
 
+# Python bytecode from the Azure Function checks
+__pycache__/
+
 # Written by artifacts/telegram-delivery on every run (big.bin is 51 MB)
 artifacts/telegram-delivery/files/
 artifacts/telegram-delivery/received/

@@ -1,3 +1,4 @@
+import hmac
 import json
 import os
 import urllib.error
@@ -7,6 +8,8 @@ import azure.functions as func
 from azure.identity import DefaultAzureCredential
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
+
+SAVING = "Perry is saving state and shutting down to save Azure credits."
 
 
 def setting(name: str) -> str:
@@ -62,40 +65,93 @@ def vm_path() -> str:
     )
 
 
-def start_vm(chat_id: str) -> str:
+def vm_status() -> list[str]:
+    """The VM's display statuses, e.g. ["Provisioning succeeded", "VM running"]."""
+    view = arm("GET", vm_path() + "/instanceView")
+    statuses = view.get("instanceView", {}).get("statuses", [])
+    return [str(item["displayStatus"]) for item in statuses if item.get("displayStatus")]
+
+
+def vm_offline(statuses: list[str]) -> bool:
+    """Deallocated, which is the only off state `/start-vm` can wake up."""
+    return any("deallocated" in status.lower() for status in statuses)
+
+
+def install_webhook() -> None:
+    """Point Telegram at this Function App, so its commands work while the VM is off."""
+    body = {"url": setting("TELEGRAM_WEBHOOK_URL"), "allowed_updates": ["message"]}
+    secret = os.environ.get("TELEGRAM_WEBHOOK_SECRET", "").strip()
+    if secret:
+        body["secret_token"] = secret
+    telegram("setWebhook", body)
+
+
+def start_vm() -> str:
     arm("POST", vm_path() + "/start")
+    # Let updates queue for Perry instead of this Function App eating them while the VM boots.
+    try:
+        telegram("deleteWebhook", {"drop_pending_updates": False})
+    except Exception as error:  # Perry deletes a leftover webhook on its own first poll.
+        print(f"could not remove the webhook after starting the VM: {error}")
     return "Starting Perry. It usually takes a minute or two. I will be back when the VM is ready."
 
 
 def stop_vm() -> str:
-    webhook = setting("TELEGRAM_WEBHOOK_URL")
-    telegram("setWebhook", {"url": webhook, "allowed_updates": ["message"]})
+    # A timer sets the webhook back once the VM is really deallocated. Setting it
+    # here would race Perry's poller, which sees the webhook, removes it, and
+    # leaves the deallocated VM unreachable.
     arm("POST", vm_path() + "/deallocate")
-    return "Perry is saving state and shutting down to save Azure credits."
+    return SAVING
+
+
+def restart_vm() -> str:
+    """Restart in place: same VM, same IP, no deallocation. For a bot that has stopped answering."""
+    arm("POST", vm_path() + "/restart")
+    return "Restarting Perry. Back in a minute or two."
+
+
+def status_message() -> str:
+    names = vm_status()
+    return f"Azure VM: {', '.join(names) or 'unknown'}"
+
+
+def command_of(message: dict) -> str:
+    text = str(message.get("text") or "").strip()
+    if not text:
+        return ""
+    return text.split()[0].lower().split("@", 1)[0]
 
 
 @app.route(route="telegram", methods=["POST"])
 def telegram_webhook(request: func.HttpRequest) -> func.HttpResponse:
+    update = None
     try:
-        update = request.get_json()
+        secret = os.environ.get("TELEGRAM_WEBHOOK_SECRET", "").strip()
+        sent = request.headers.get("x-telegram-bot-api-secret-token", "")
+        if secret and not hmac.compare_digest(sent, secret):
+            return func.HttpResponse("unauthorized", status_code=401)
+
+        update = request.get_json() or {}
         message = update.get("message") or {}
         chat = message.get("chat") or {}
         chat_id = str(chat.get("id", ""))
-        text = str(message.get("text", "")).strip().split()[0].lower().split("@")[0] if message.get("text") else ""
+        command = command_of(message)
         if not authorized(chat_id):
             return func.HttpResponse("ignored", status_code=200)
-        if text == "/start-vm":
-            reply(chat_id, start_vm(chat_id))
-        elif text == "/status-vm":
-            state = arm("GET", vm_path() + "/instanceView").get("instanceView", {}).get("statuses", [])
-            names = [item.get("displayStatus") for item in state if item.get("displayStatus")]
-            reply(chat_id, f"Azure VM: {', '.join(names) or 'unknown'}")
-        elif text == "/stop-vm":
+        if command in ("/start-vm", "/start_vm"):
+            reply(chat_id, start_vm())
+        elif command in ("/status-vm", "/status_vm"):
+            reply(chat_id, status_message())
+        elif command in ("/stop-vm", "/stop_vm"):
             reply(chat_id, stop_vm())
+        elif command in ("/restart-vm", "/restart_vm"):
+            reply(chat_id, restart_vm())
+        elif command:
+            reply(chat_id, "Perry is off. Send /start-vm to start the VM, /status-vm for its state, or /stop-vm to save credits.")
         return func.HttpResponse("ok", status_code=200)
     except Exception as error:
         try:
-            chat_id = str((update.get("message") or {}).get("chat", {}).get("id", ""))
+            chat_id = str((((update or {}).get("message") or {}).get("chat") or {}).get("id", ""))
             if chat_id and authorized(chat_id):
                 reply(chat_id, f"VM control failed: {error}")
         except Exception:
@@ -105,18 +161,42 @@ def telegram_webhook(request: func.HttpRequest) -> func.HttpResponse:
 
 @app.route(route="control", methods=["POST"])
 def control(request: func.HttpRequest) -> func.HttpResponse:
-    if request.headers.get("x-perry-control-key") != setting("PERRY_VM_CONTROL_KEY"):
+    sent = request.headers.get("x-perry-control-key", "")
+    if not hmac.compare_digest(sent, setting("PERRY_VM_CONTROL_KEY")):
         return func.HttpResponse("unauthorized", status_code=401)
     try:
-        action = request.get_json().get("action")
+        action = (request.get_json() or {}).get("action")
         if action == "start":
-            message = start_vm(setting("TELEGRAM_ALLOWED_CHAT_ID"))
+            message = start_vm()
         elif action == "stop":
             message = stop_vm()
+        elif action == "restart":
+            message = restart_vm()
         elif action == "status":
-            message = "Azure VM control is available."
+            message = status_message()
         else:
             return func.HttpResponse("unknown action", status_code=400)
         return func.HttpResponse(json.dumps({"ok": True, "message": message}), mimetype="application/json")
     except Exception as error:
         return func.HttpResponse(json.dumps({"ok": False, "error": str(error)}), status_code=500, mimetype="application/json")
+
+
+@app.timer_trigger(schedule="0 * * * * *", arg_name="timer", run_on_startup=True)
+def reconcile(timer: func.TimerRequest) -> None:
+    """Keep the Telegram control path alive only while the VM is deallocated.
+
+    The stop path cannot set the webhook itself: the running Perry sees it,
+    removes it because `getUpdates` refuses to run with a webhook set, and then
+    the VM finishes deallocating with no way to reach `/start-vm`. Doing it
+    after the fact avoids that race, and a minute of queued updates is fine.
+    """
+    try:
+        statuses = vm_status()
+        if not vm_offline(statuses):
+            return
+        info = telegram("getWebhookInfo", {})
+        current = (info.get("result") or {}).get("url", "")
+        if current != setting("TELEGRAM_WEBHOOK_URL"):
+            install_webhook()
+    except Exception as error:
+        print(f"could not reconcile the Telegram webhook: {error}")

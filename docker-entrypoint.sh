@@ -24,7 +24,7 @@ server=$!
 ) &
 runner=$!
 
-# Render sends TERM on deploy/restart: take the engine down with the server.
+# Docker sends TERM on stop/restart: take the engine down with the server.
 trap 'kill "$server" "$runner" 2>/dev/null; wait "$server" "$runner" 2>/dev/null' TERM INT
 
 wait "$server"
