@@ -27,8 +27,36 @@ from http import HTTPStatus
 SAVING = "Perry is saving state and shutting down to save Azure credits."
 STARTING = "Starting Perry. It usually takes a minute or two. I will be back when the VM is ready."
 RESTARTING = "Restarting Perry. Back in a minute or two."
-OFF_HINT = "Perry is off. /start-vm starts it, /status-vm shows its state, /stop-vm saves credits."
+OFF_HINT = (
+    "Perry is off, so it cannot answer that yet.\n\n"
+    "/start-vm   start it (a minute or two)\n"
+    "/status-vm  Azure VM state"
+)
 FAILED = "VM control failed: {error}"
+
+# Telegram's command menu: what the blue menu button lists, per bot, so it
+# outlives this app's instances. Names are lowercase letters, digits and "_"
+# (Telegram refuses a hyphen), and the four VM ones are the same commands Perry
+# answers as /start-vm and so on: it folds a trailing "_vm" back to "-vm".
+COMMANDS = [
+    ("career", "Job search: /career <mode|job url>, or /career alone for the modes"),
+    ("help", "Commands, and how I work"),
+    ("status_vm", "Azure VM state"),
+    ("start_vm", "Start the Azure VM"),
+    ("stop_vm", "Save state and deallocate the VM"),
+    ("restart_vm", "Restart the VM in place"),
+    ("model", "List models; /model <name> switches this chat"),
+    ("think", "List thinking levels; /think <level> sets this chat"),
+    ("access", "Ask, auto or full: whether I ask before acting"),
+    ("usage", "This chat's plan usage, and what is left"),
+    ("stop", "Stop the reply I am writing"),
+    ("pause", "Stop everything, and start nothing new"),
+    ("resume", "Start again; /run and /skip settle what was missed"),
+    ("compact", "Shrink what I carry of this chat"),
+    ("note", "Add to your Inbox note"),
+    ("status", "Plumbing and recent errors"),
+    ("reset", "Save this chat to memory, then start fresh"),
+]
 
 # How long a stop may take before the takeover gives up. Deallocation takes a
 # minute or two; the rest is slack for a slow Azure.
@@ -124,6 +152,19 @@ def install_webhook() -> None:
     if secret:
         body["secret_token"] = secret
     telegram("setWebhook", body)
+    # A menu that fails to publish is not worth losing the webhook over.
+    try:
+        install_commands()
+    except Exception as error:
+        print(f"could not publish the Telegram command menu: {error}")
+
+
+def install_commands() -> None:
+    """Publish the menu Telegram shows beside the message box (see COMMANDS)."""
+    telegram(
+        "setMyCommands",
+        {"commands": [{"command": name, "description": text} for name, text in COMMANDS]},
+    )
 
 
 def webhook_is_ours() -> bool:

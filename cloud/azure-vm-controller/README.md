@@ -13,6 +13,17 @@ The hyphenated commands are canonical; `/start_vm`, `/stop_vm`, `/status_vm`
 and `/restart_vm` are accepted too. Any other message while Perry is off gets a
 short hint, so the bot does not look dead.
 
+### The menu in Telegram
+
+Whenever the app points Telegram at itself it also publishes the command menu
+(`setMyCommands`), so the blue button beside the message box lists what Perry
+does — the same commands `/help` prints. Telegram refuses a hyphen in a menu
+name, so the four VM commands are listed as `/start_vm`, `/stop_vm`,
+`/status_vm` and `/restart_vm`; Perry folds a trailing `_vm` back to `-vm`, so
+both spellings are one command. To publish the menu without waiting for a
+takeover, run `install_commands()` from `app.py` on a machine with
+`TELEGRAM_BOT_TOKEN` set.
+
 It is a plain WSGI app (`app.py`), served by gunicorn on an **F1 (free) Linux
 App Service plan**, so it costs nothing while it waits. There is no framework
 and no Azure SDK: the only dependency is gunicorn.

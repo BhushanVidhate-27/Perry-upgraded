@@ -198,6 +198,33 @@ def main() -> None:
     assert post("/api/telegram", message("/start-vm"), {"x-telegram-bot-api-secret-token": "nope"})[0] == 401
     assert calls == [], calls
 
+    # The menu Telegram shows obeys its rules: one bad name fails the whole
+    # setMyCommands, and a hyphen (which Telegram refuses) is the easy mistake.
+    names = [name for name, _text in controller.COMMANDS]
+    assert len(names) == len(set(names)), names
+    assert len(names) <= 100, len(names)
+    for name, text in controller.COMMANDS:
+        assert 1 <= len(name) <= 32, name
+        assert all(char.islower() or char.isdigit() or char == "_" for char in name), name
+        assert 1 <= len(text) <= 256, text
+    # The four the menu offers are the four this app answers, in its spelling.
+    for name in ("start_vm", "stop_vm", "status_vm", "restart_vm"):
+        assert name in names, name
+
+    # Taking Telegram over publishes that menu, without the webhook waiting on it.
+    reset(["Provisioning succeeded", "Deallocated"])
+    assert controller.take_over_telegram(wait_seconds=0) is True
+    published = dict(telegrams)["setMyCommands"]
+    assert [item["command"] for item in published["commands"]] == names, published
+
+    reset(["Provisioning succeeded", "Deallocated"])
+    def broken() -> None:
+        raise RuntimeError("Telegram says no")
+
+    controller.install_commands = broken
+    assert controller.take_over_telegram(wait_seconds=0) is True
+    assert "setWebhook" in methods(), methods
+
     print("ok: azure vm controller checks passed")
 
 

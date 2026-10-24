@@ -70,7 +70,9 @@ async function runCommand(
   telegramToken: string | null,
 ): Promise<string> {
   const [raw] = text.trim().split(/\s+/);
-  const command = raw.toLowerCase().replace(/@.*$/, ""); // strip /cmd@botname
+  // Strip /cmd@botname. Telegram's command menu takes letters, digits and "_"
+  // but no hyphen, so it offers /start_vm where this chat means /start-vm.
+  const command = raw.toLowerCase().replace(/@.*$/, "").replace(/_vm$/, "-vm");
 
   // The chat's own engine, else the default it follows; none while the owner has not chosen one.
   const engine = conversation.engine ?? (await ctx.runQuery(internal.installation.getDefaultEngine, {})) ?? undefined;
