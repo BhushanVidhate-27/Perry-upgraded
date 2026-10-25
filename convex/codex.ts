@@ -1123,7 +1123,7 @@ function citedMemories(response?: string): { text?: string; ids: string[] } {
 function failureText(job: { error?: string; response?: string }): string {
   const said = `${job.response ? `${job.response}\n\n` : ""}That broke: ${job.error}`;
   return job.error && LIMIT_HIT.test(job.error)
-    ? `${said}\n\nThat model's plan is used up. /model lists this chat's models; /model <name> switches to one with room.`
+    ? `${said}\n\nThat model's plan is used up. /model lists this chat's models; /model <name> switches.`
     : said;
 }
 

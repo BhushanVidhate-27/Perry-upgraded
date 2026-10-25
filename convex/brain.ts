@@ -13,7 +13,7 @@ import {
 import { b2Creds } from "./media";
 import { b2Delete, b2Download, b2List, b2Upload } from "./lib/b2";
 import { clearDashboardPassword, dashboardPassword, setDashboardPassword } from "./lib/dashboardPassword";
-import { describeUsage } from "./lib/usage";
+import { describeUsage, standing } from "./lib/usage";
 import { ENGINE_LABELS, type EngineKind } from "./lib/engines";
 import type { Choice } from "./lib/routing";
 import { DOWNLOAD_LIMIT, downloadFile, sendFile, sendMessage, sendTyping } from "./lib/telegram";
@@ -79,7 +79,15 @@ async function runCommand(
   const modelCommand = parseModelCommand(text);
   if (modelCommand) {
     const models: ModelOption[] = await ctx.runQuery(internal.models.list, {});
-    if (!modelCommand.name) return describeModels(models, conversation.model, engine);
+    if (!modelCommand.name) {
+      const list = describeModels(models, conversation.model, engine);
+      if (!engine) return list;
+      // The list is read on a phone after a refusal: say when switching cannot help yet.
+      const read = await ctx.runQuery(internal.usage.forEngine, { engine });
+      return standing(read.usage, Date.now()).level === "out"
+        ? `${list}\n\n${ENGINE_LABELS[engine]}'s plan is used up right now, so no model on it answers a turn until the limit resets or another provider is connected.`
+        : list;
+    }
     const { model, reply } = pickModel(models, modelCommand.name, conversation.effort, engine);
     if (model) await ctx.runMutation(internal.conversations.setModel, { id: conversation._id, model: model.id, engine: model.engine });
     return reply;
