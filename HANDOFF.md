@@ -85,6 +85,10 @@ Ways out, in order of effort:
    move) and only the models of providers actually connected with `opencode
    auth login` follow — switching is manual with `/model <name>`; there is no
    automatic failover to another model.
+   **Groq is connected** on the VM (`groq` in `opencode auth list`, 7 models;
+   `opencode run -m groq/openai/gpt-oss-20b` answered `GROQ OK`). The new image
+   will list 16 models: the nine bundled, then the seven Groq. The key is in
+   `/data/.perry/opencode`, never in the repo or `perry.env`.
 3. Subscribe to OpenCode Go.
 
 ## OpenCode data on the volume
@@ -103,6 +107,11 @@ auth now survive a container recreate.
   answered `/status_vm` with 200, refused a request without the secret (401),
   then `/start_vm` woke the VM and removed the webhook. Container back in 57 s.
 - `/model big-pickle` switched the chat from Telegram while the plan was out.
+- Groq connected inside the container: `opencode auth list` names `groq`, the
+  CLI lists 7 `groq/*` models, and a real turn on `groq/openai/gpt-oss-20b`
+  answered. Feeding the VM's real `opencode models` and auth output through
+  `offeredModels` gives 16 models, bundled first, default `opencode/beam-free`,
+  and no provider that is not connected.
 - `/schedules` from Telegram: 200, reply sent with no error. Only Perry's four
   built-in jobs exist, and they are filtered out, so it says nothing is
   scheduled.
