@@ -448,7 +448,7 @@ export function parseAccountCommand(text: string): AccountCommand | null {
   if (!match) return null;
   const words = (match[1] ?? "").trim().split(/\s+/).filter(Boolean);
   if (words[0]?.toLowerCase() === "add") words.shift();
-  if (!words.length) return { kind: "list" };
+  if (!words.length || (words.length === 1 && words[0].toLowerCase() === "list")) return { kind: "list" };
   if (words.length < 3) {
     return {
       kind: "error",

@@ -9,13 +9,15 @@ Verified against the live system. Tokens and keys live in `/tmp/perry.env`
   image builds no longer die with `exit 137`.
 - Container `perry` on image `perry:new` = `769084e965a4`, deployed from
   `9736a3f`: `/data/.perry` mounted, `XDG_DATA_HOME=/data/.perry`,
-  `Telegram: polling for messages`, backend health 200.
+  `Telegram: polling for messages`, backend health 200. The `/account` build
+  waits for midnight (below).
 - Controller `https://perry-ctrl-26af6748.azurewebsites.net` (F1 free) live and
-  deployed from `9736a3f`.
-- Telegram menu: 21 commands — `/start`, `/career`, `/schedule`, `/schedules`,
-  `/help`, `/status_vm`, `/start_vm`, `/stop_vm`, `/restart_vm`, `/model`,
-  `/think`, `/access`, `/usage`, `/stop`, `/pause`, `/resume`, `/compact`,
-  `/note`, `/status`, `/pair`, `/reset`.
+  deployed from `06be470`.
+- Telegram menu: 21 commands now, 22 after the midnight build adds `/account` —
+  `/start`, `/career`, `/schedule`, `/schedules`, `/account`, `/help`,
+  `/status_vm`, `/start_vm`, `/stop_vm`, `/restart_vm`, `/model`, `/think`,
+  `/access`, `/usage`, `/stop`, `/pause`, `/resume`, `/compact`, `/note`,
+  `/status`, `/pair`, `/reset`.
 
 ## Schedules from Telegram
 
@@ -27,6 +29,28 @@ Verified against the live system. Tokens and keys live in `/tmp/perry.env`
   next run on their clock, leaves out Perry's four built-in upkeep jobs and
   one-time jobs whose time has gone.
 - Both are in the menu. The controller republishes the menu on takeover.
+
+## Logins from Telegram
+
+- `/account <name> <username> <password>` saves a login in Settings → Logins &
+  secrets without the engine, so it works while a plan is used up. The name may
+  have spaces; the password is the last word.
+- `/account` (or `/account list`) prints the saved logins and usernames, never
+  a password.
+- The password message is deleted from Telegram once it is saved; the vault also
+  scrubs it from Perry's chat, turns and traces. The agent uses it with
+  `use_secret` or the browser's `sign_in` when the owner asks.
+- On `origin/main` (`af17cf7`); the running image gets it at midnight.
+
+## The midnight build
+
+- `cloud/azure-vm/midnight-build.sh` is on the VM, run by root cron
+  `30 18 * * *` (18:30 UTC = 00:00 IST). It is one-shot: it removes its own
+  entry first.
+- It resets to `origin/main`, builds, swaps with rollback, waits for health,
+  publishes the menu from the controller's `COMMANDS`, and reports in Telegram.
+  Log: `/home/azureuser/midnight-build.log`.
+- Installed now; nothing has been rebuilt since `769084e965a4`.
 
 ## The one thing that is broken, and it is not Perry
 
