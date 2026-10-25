@@ -15,13 +15,13 @@ import { commandOf, runCli } from "./process";
  *   - `opencode acp` speaks ACP v1 (its initialize reports loadSession,
  *     session resume, images and HTTP MCP).
  *   - Models and thinking level are session config options ("model",
- *     "effort"); `opencode models` lists them without a session: the free
- *     bundled provider (`opencode/`) and every provider connected with
- *     `opencode auth login`. All are offered, bundled first (offeredModels),
- *     so a bundled plan that is used up can be left for a provider's own
- *     quota. Deprecated ids stay in that list (OpenCode's own default,
- *     exo-free, is one), so no id is trusted as the default; the first
- *     bundled model is. A session's learned efforts are kept per id.
+ *     "effort"); `opencode models` lists them without a session. Its free
+ *     bundled provider (`opencode/`) and the providers connected with
+ *     `opencode auth login` are offered, bundled first (offeredModels), so a
+ *     bundled plan that is used up can be left for a provider's own quota.
+ *     Deprecated ids stay in that list (OpenCode's own default, exo-free, is
+ *     one), so no id is trusted as the default; the first bundled model is. A
+ *     session's learned efforts are kept per id.
  *   - Its bundled models need no sign-in at all, so an installed OpenCode is
  *     usable as it is; `opencode auth login` connects the owner's own
  *     providers, whose models Perry offers but whose credentials it never
@@ -65,18 +65,44 @@ export function opencodeCommand(): { command: string; args: string[] } {
 
 /**
  * The models /model offers, from `opencode models`: OpenCode's free bundled
- * ones first, then every model of a provider connected with `opencode auth
- * login`. Keeping the bundled ones first keeps the free model the default, so
- * connecting a provider never moves a chat that has not picked one; switching
- * to a provider is how a chat gets past a bundled plan that is used up.
+ * ones first, then the models of providers connected with `opencode auth
+ * login` (the ids `connected` names). Keeping the bundled ones first keeps the
+ * free model the default, so connecting a provider never moves a chat that has
+ * not picked one; switching to a provider is how a chat gets past a bundled
+ * plan that is used up.
  *
- * Bundled names drop OpenCode's `opencode/` prefix (the engine is already
- * named); a provider's id keeps its own prefix, which tells the providers
- * apart. Duplicate ids are listed once.
+ * Only connected providers are offered: `opencode models` can also list models
+ * of providers this computer has not connected, which would bury the useful
+ * ones. Bundled names drop OpenCode's `opencode/` prefix; a provider's id
+ * keeps its own prefix, which tells the providers apart. Duplicate ids are
+ * listed once.
  */
-export function offeredModels(ids: string[], learned: EngineModel[] = []): EngineModel[] {
+/**
+ * The provider keys (ids and names, lowercased) in `opencode auth list
+ * --format json`, which are the prefixes `opencode models` gives a provider's
+ * models. Entries have been seen in two shapes: `{id, name}` and `{id,
+ * integrationID, name}`, so every string field is taken. Notion and other MCP
+ * integrations come back too; an `mcp_` entry is a tool server, not a model
+ * provider, and is left out.
+ */
+export function providerKeys(entries: unknown[]): string[] {
+  const text = (value: unknown) => typeof value === "string" && value.trim() ? value.trim().toLowerCase() : "";
+  return [...new Set(entries.flatMap((entry) => {
+    if (typeof entry === "string") return [text(entry)];
+    if (!entry || typeof entry !== "object") return [];
+    const fields = entry as { id?: unknown; name?: unknown; integrationID?: unknown };
+    const ids = [text(fields.id), text(fields.integrationID)];
+    // An MCP integration's name is a tool server, not a model provider.
+    if (ids.some((id) => id.startsWith("mcp_"))) return [];
+    return [...ids, text(fields.name)];
+  }).filter(Boolean))];
+}
+
+export function offeredModels(ids: string[], learned: EngineModel[] = [], connected: string[] = []): EngineModel[] {
   const seen = new Map(learned.map((model) => [model.id, model]));
-  const unique = [...new Set(ids.map((id) => id.trim()).filter(Boolean))];
+  const providers = new Set(connected.map((id) => id.trim().toLowerCase()).filter(Boolean));
+  const usable = (id: string) => id.startsWith(BUNDLED) || providers.has(id.split("/")[0].toLowerCase());
+  const unique = [...new Set(ids.map((id) => id.trim()).filter(Boolean))].filter(usable);
   const ordered = [
     ...unique.filter((id) => id.startsWith(BUNDLED)),
     ...unique.filter((id) => !id.startsWith(BUNDLED)),
@@ -183,23 +209,33 @@ export class OpenCodeEngine extends AcpEngine {
         ran = await runCli(this.cli, ["models"], 30_000);
       }
       if (ran.code !== 0) throw new Error(ran.stderr.trim().split("\n")[0] || "opencode models failed.");
-      this.listed = { at: Date.now(), models: offeredModels(ran.stdout.split("\n"), this.learnedModels()) };
+      this.listed = { at: Date.now(), models: offeredModels(ran.stdout.split("\n"), this.learnedModels(), (await this.integrations()).providers) };
     }
     return this.listed.models;
   }
 
-  /** The provider integrations saved in OpenCode, as ids; none when it will not say. */
-  private async integrations(): Promise<string[]> {
+  /**
+   * OpenCode's saved integrations: `ids` to sign out of, `providers` (ids and
+   * names, lowercased) to tell which models belong to a provider the owner
+   * connected. Empty when it will not say.
+   */
+  private async integrations(): Promise<{ ids: string[]; providers: string[] }> {
+    const none = { ids: [], providers: [] };
     try {
       const ran = await runCli(this.cli, ["auth", "list", "--format", "json"], 30_000);
-      if (ran.code !== 0) return [];
+      if (ran.code !== 0) return none;
       const parsed = JSON.parse(ran.stdout) as unknown;
-      if (!Array.isArray(parsed)) return [];
-      return parsed.map((entry) => typeof entry === "string" ? entry
-        : entry && typeof entry === "object" ? String((entry as { id?: unknown; name?: unknown }).id ?? (entry as { name?: unknown }).name ?? "") : "")
-        .filter(Boolean);
+      if (!Array.isArray(parsed)) return none;
+      const entries = parsed.filter((entry): entry is Record<string, unknown> => Boolean(entry) && typeof entry === "object");
+      const text = (value: unknown) => typeof value === "string" && value.trim() ? value.trim() : "";
+      return {
+        ids: [...new Set(entries.map((entry) => text(entry.id ?? entry.name)).filter(Boolean))],
+        // A provider's models are prefixed with its provider id, which may be
+        // the integration's name rather than the credential's id.
+        providers: providerKeys(parsed),
+      };
     } catch {
-      return [];
+      return none;
     }
   }
 
@@ -209,13 +245,13 @@ export class OpenCodeEngine extends AcpEngine {
    * waits for one to appear.
    */
   async login(): Promise<LoginFlow> {
-    if ((await this.integrations()).length) return { interaction: null, done: Promise.resolve(), cancel: () => {} };
-    const waiting = waitForSignIn(async () => (await this.integrations()).length > 0, "Connecting OpenCode");
+    if ((await this.integrations()).ids.length) return { interaction: null, done: Promise.resolve(), cancel: () => {} };
+    const waiting = waitForSignIn(async () => (await this.integrations()).ids.length > 0, "Connecting OpenCode");
     return { interaction: { type: "terminal", command: "opencode auth login" }, done: waiting.done, cancel: waiting.cancel };
   }
 
   async logout(): Promise<void> {
-    const ids = await this.integrations();
+    const { ids } = await this.integrations();
     // Its bundled models need no sign-in, so with nothing connected there is nothing to sign out of.
     if (!ids.length) return;
     for (const id of ids) {
