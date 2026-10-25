@@ -428,6 +428,49 @@ export function describeSchedules(jobs: ScheduleRow[], timeZone: string): string
   ].join("\n");
 }
 
+// --- Logins (/account) -----------------------------------------------------
+
+/** A saved login, as vault.list returns it, in what /account prints: never its value. */
+export type AccountRow = { label: string; username?: string };
+
+/**
+ * "/account" alone lists the saved logins; "/account <name> <username>
+ * <password>" saves one. The name may hold spaces, so the password is the last
+ * word and the username the one before it.
+ */
+export type AccountCommand =
+  | { kind: "list" }
+  | { kind: "save"; label: string; username: string; password: string }
+  | { kind: "error"; message: string };
+
+export function parseAccountCommand(text: string): AccountCommand | null {
+  const match = text.trim().match(/^\/account(?:@\S+)?(?:\s+([\s\S]*))?$/i);
+  if (!match) return null;
+  const words = (match[1] ?? "").trim().split(/\s+/).filter(Boolean);
+  if (words[0]?.toLowerCase() === "add") words.shift();
+  if (!words.length) return { kind: "list" };
+  if (words.length < 3) {
+    return {
+      kind: "error",
+      message: "Give a name, a username and a password: /account <name> <username> <password>, e.g. /account github me@example.com my-password. The name may have spaces; the username and password may not.",
+    };
+  }
+  return { kind: "save", label: words.slice(0, -2).join(" "), username: words[words.length - 2], password: words[words.length - 1] };
+}
+
+/** What "/account" prints: the saved logins, numbered, never a password. */
+export function describeAccounts(accounts: AccountRow[]): string {
+  if (!accounts.length) {
+    return "No logins saved yet.\n\nAdd one with /account <name> <username> <password>, e.g. /account github me@example.com my-password. I keep it in Settings → Logins & secrets and sign in with it when you ask.";
+  }
+  return [
+    `${accounts.length} login${accounts.length === 1 ? "" : "s"}:`,
+    ...accounts.map((account, index) => `${index + 1}. ${account.label}${account.username ? ` (${account.username})` : ""}`),
+    "",
+    "Add one with /account <name> <username> <password>. I never repeat a saved password.",
+  ].join("\n");
+}
+
 // --- Password commands (/password) -----------------------------------------
 
 /** "/password", "/password set <new>", "/password reset", "/password status" (and "/password@botname" on Telegram). */

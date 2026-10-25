@@ -9,6 +9,7 @@ import {
   ACCESS_LABELS, careerAsk, chatModel, currentModel, describeAccess, describeEfforts, describeMissed, describeModels, describePassword, describeStorage, describeSystem, effortUnused, parseAccessCommand,
   parseMissedCommand, parseModelCommand, parsePasswordCommand, parseStorageCommand, parseSystemCommand, parseThinkCommand, parseWebCommand, PAUSED_ERROR, PAUSED_OWNER, PAUSED_REPLY, pickAccess, pickEffort, pickModel, runLabel,
   describeSchedules, scheduleAsk, turnEffort, type MissedRun, type ModelOption,
+  describeAccounts, parseAccountCommand,
 } from "./lib/commands";
 import { b2Creds } from "./media";
 import { b2Delete, b2Download, b2List, b2Upload } from "./lib/b2";
@@ -16,7 +17,7 @@ import { clearDashboardPassword, dashboardPassword, setDashboardPassword } from 
 import { describeUsage, standing } from "./lib/usage";
 import { ENGINE_LABELS, type EngineKind } from "./lib/engines";
 import type { Choice } from "./lib/routing";
-import { DOWNLOAD_LIMIT, downloadFile, sendFile, sendMessage, sendTyping } from "./lib/telegram";
+import { DOWNLOAD_LIMIT, deleteMessage, downloadFile, sendFile, sendMessage, sendTyping } from "./lib/telegram";
 import { resumeOf } from "./engines";
 import { sha256 } from "./memories";
 import { LEFT_PROJECT } from "./projects";
@@ -46,6 +47,7 @@ Your private assistant.
   /career   job search: /career <mode|job url>, or /career alone for the modes
   /schedules  what runs on a schedule, and when each runs next
   /schedule /schedule <when> <what> sets one up, e.g. /schedule every weekday at 8:00 send a briefing
+  /account  save a login: /account <name> <username> <password>; /account alone lists them
   /usage    how much of this chat's model plan is used, and what is left
   /stop     stop the reply I am writing
   /pause    stop everything I am doing, and start nothing new
@@ -273,6 +275,18 @@ async function runCommand(
     case "/schedule": {
       const jobs = await ctx.runQuery(internal.jobs.list, {});
       return describeSchedules(jobs, await ctx.runQuery(internal.jobs.ownerTimezone, {}));
+    }
+
+    // Saved logins. "/account <name> <username> <password>" saves one here,
+    // without the engine, so it works while a plan is used up.
+    case "/account": {
+      const parsed = parseAccountCommand(text);
+      if (!parsed || parsed.kind === "list") return describeAccounts(await ctx.runQuery(internal.vault.list, {}));
+      if (parsed.kind === "error") return parsed.message;
+      const saved = await ctx.runMutation(internal.vault.save, {
+        label: parsed.label, username: parsed.username, value: parsed.password, by: "owner", conversationId: conversation._id,
+      });
+      return `${saved.replaced ? "Replaced the saved login" : "Saved"} "${parsed.label}" for ${parsed.username}. I keep it in Settings → Logins & secrets and sign in with it when you ask; I never repeat it.`;
     }
 
     case "/status": {
@@ -660,7 +674,8 @@ export const handleTurn = internalAction({
     attachmentIds: v.optional(v.array(v.id("chatAttachments"))),
     /** Files sent on Telegram, downloaded here before the turn. */
     telegramMedia: v.optional(v.array(vTelegramMedia)),
-    /** Files that came with a WhatsApp message, already stored (whatsapp.receive). */
+    /** The message's id on Telegram, to delete a login password once it is saved. */
+    telegramMessageId: v.optional(v.number()),    /** Files that came with a WhatsApp message, already stored (whatsapp.receive). */
     storedMedia: v.optional(v.array(v.object({ storageId: v.id("_storage"), fileName: v.string(), contentType: v.string(), size: v.number() }))),
     /** Not the owner's words (the greeting after the welcome page): only the reply is saved to the chat. */
     hidden: v.optional(v.boolean()),
@@ -715,6 +730,7 @@ export const handleTurn = internalAction({
       // "/career <mode|job>" is a turn, not plumbing: it names the career-ops skill.
       const career = guest ? null : careerAsk(args.text);
       const schedule = guest ? null : scheduleAsk(args.text);
+      const account = guest ? null : parseAccountCommand(args.text);
       const command = !career && !schedule && !guest && channel !== "web" && !args.fromWeb && args.text.startsWith("/") && !args.telegramMedia?.length && !args.storedMedia?.length;
       // Paused (pause.ts): a schedule's or task's turn on its way is held for the owner; a message from the phone is
       // answered that Perry is paused, the owner's with how to resume; commands still work, /resume among them.
@@ -726,6 +742,11 @@ export const handleTurn = internalAction({
       }
       if (command) {
         await say(await runCommand(ctx, conversation, args.text, telegramToken));
+        // A login's password is taken out of Telegram too, not only Perry's copy.
+        if (account?.kind === "save" && channel === "telegram" && args.telegramMessageId) {
+          await deleteMessage(telegramToken, args.externalId, args.telegramMessageId)
+            .catch((error) => console.error(`could not delete the login message: ${String(error)}`));
+        }
         return null;
       }
 

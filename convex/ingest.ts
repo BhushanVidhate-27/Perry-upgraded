@@ -35,6 +35,7 @@ export const fromTelegram = internalAction({
     }
     await ctx.runMutation(internal.ingest.receive, {
       chatId: inbound.chatId,
+      messageId: inbound.messageId,
       senderId: inbound.senderId,
       text: inbound.text,
       title: inbound.title,
@@ -120,6 +121,7 @@ Try:
 export const receive = internalMutation({
   args: {
     chatId: v.string(),
+    messageId: v.optional(v.number()),
     senderId: v.string(),
     text: v.string(),
     title: v.optional(v.string()),
@@ -198,6 +200,7 @@ export const receive = internalMutation({
       text: args.text,
       title: args.title,
       telegramMedia: args.media,
+      ...(args.messageId ? { telegramMessageId: args.messageId } : {}),
     });
     return null;
   },

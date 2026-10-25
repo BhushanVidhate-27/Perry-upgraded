@@ -43,6 +43,7 @@ COMMANDS = [
     ("career", "Job search: /career <mode|job url>, or /career alone for the modes"),
     ("schedule", "Set one up: /schedule every weekday at 8:00 send a briefing"),
     ("schedules", "What runs on a schedule, and when each runs next"),
+    ("account", "Save a login: /account <name> <username> <password>"),
     ("help", "Commands, and how I work"),
     ("status_vm", "Azure VM state"),
     ("start_vm", "Start the Azure VM"),

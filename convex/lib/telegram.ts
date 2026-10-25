@@ -364,6 +364,7 @@ export type InboundMedia = { fileId: string; fileName: string; contentType: stri
 
 export interface InboundMessage {
   chatId: string;
+  messageId: number;
   senderId: string;
   text: string;
   title?: string;
@@ -449,6 +450,7 @@ export function parseUpdate(update: TelegramUpdate): InboundMessage | InboundCal
     .map((entity) => raw.slice(entity.offset + 1, entity.offset + entity.length).toLowerCase());
   return {
     chatId: String(message.chat.id),
+    messageId: message.message_id,
     senderId: String(message.from?.id ?? message.chat.id),
     text,
     title: message.chat.title ?? message.from?.username,
