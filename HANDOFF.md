@@ -76,11 +76,12 @@ Ways out, in order of effort:
    Groq/OpenAI-compatible or Anthropic key; its models then appear in `/model`.
    Do this **inside the container**. Auth now lives in
    `/data/.perry/opencode`, on the volume, so it survives container recreates.
-   This needs the "Backup for model switching" change (`d72ae1f`): until the
+   This needs the "Backup for model switching" change (`ba9a511`): until the
    midnight build runs, the image still filters `/model` to `opencode/*`. After
-   it, bundled models stay first (so the default does not move) and a
-   provider's models follow — switching is manual with `/model <name>`; there
-   is no automatic failover to another model.
+   it, bundled models stay first (so the default does not move) and only the
+   models of providers actually connected with `opencode auth login` follow —
+   switching is manual with `/model <name>`; there is no automatic failover to
+   another model.
 3. Subscribe to OpenCode Go.
 
 ## OpenCode data on the volume
