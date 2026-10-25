@@ -725,8 +725,8 @@ type JobRow = {
 
 const list_jobs = createTool({
   description:
-    "List the scheduled jobs, including the built-in heartbeat, daily summary and memory " +
-    "consolidation, with their schedules or one-time runs, when they next run, and how the " +
+    "List the scheduled jobs, including the built-in daily summary, memory consolidation " +
+    "and Brain review, with their schedules or one-time runs, when they next run, and how the " +
     "last run went, including why it failed; what each runs on and why (the owner's model, your pick, " +
     "or the tier's), and a run waiting for an engine's plan to reset.",
   inputSchema: z.object({}),
@@ -762,7 +762,7 @@ const update_job = createTool({
     "Change, pause, or resume a scheduled job by id, from list_jobs: rename it, " +
     "change its prompt, or move it to a cron schedule or a one-time at. A new " +
     "time also resumes it unless enabled is false. List jobs before changing an " +
-    "ambiguous one. The heartbeat and other built-in jobs can only be rescheduled, paused or resumed, " +
+    "ambiguous one. The built-in jobs can only be rescheduled, paused or resumed, " +
     "or given a tier or model. tier, model and effort set what its runs use (tier \"auto\" goes back to picking by the kind of work).",
   inputSchema: z.object({
     id: z.string().min(1),
@@ -788,7 +788,7 @@ const update_job = createTool({
 });
 
 const delete_job = createTool({
-  description: "Delete a scheduled job by id, from list_jobs. The heartbeat is paused instead. Confirm with the owner first.",
+  description: "Delete a scheduled job by id, from list_jobs. A built-in job is paused instead. Confirm with the owner first.",
   inputSchema: z.object({ id: z.string().min(1) }),
   execute: async (ctx, input): Promise<{ deleted: boolean }> => {
     return { deleted: await ctx.runMutation(internal.jobs.remove, { id: input.id }) };

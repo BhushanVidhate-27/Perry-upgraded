@@ -23,10 +23,9 @@ import { assertRunning, missedPatch, pausedAt } from "./pause";
  * reply of exactly NOTHING means there was nothing worth saying: it leaves no
  * message and sends nothing.
  *
- * The heartbeat is the built-in job: every few hours in the day it looks over
- * tasks, goals, watches and recent memory and speaks only when something is
- * worth the owner's attention. The agent creates its own jobs with the
- * create_job tool; the Tasks page lists them all.
+ * The built-in jobs keep memory current without the owner asking: a daily
+ * summary, a nightly consolidation, and a weekly Brain review. The agent
+ * creates its own jobs with the create_job tool; the Tasks page lists them all.
  */
 
 export const QUIET = "NOTHING";
@@ -82,21 +81,14 @@ type Builtin = "heartbeat" | "daily-summary" | "consolidate" | "brain-review";
  * one writes down what happened each day, the other promotes what proved
  * durable. Both work quietly and deliver nothing.
  */
-const BUILTINS: Array<{ builtin: Builtin; name: string; schedule: string; prompt: string }> = [
-  {
-    builtin: "heartbeat",
-    name: "Heartbeat",
-    schedule: "0 9,13,17,21 * * *",
-    prompt: [
-      "This is your scheduled heartbeat, not a message from the owner.",
-      "Look over what could need the owner's attention now: status_report for tasks, goals and page watches, today's and yesterday's notes in memory, and connected accounts where it helps (for example today's calendar).",
-      "Delivery is conditional: only if there is something they would want to know now, or a follow-up worth asking about a thread they left open, reply with a short message for them. Do not take actions that change anything.",
-    ].join(" "),
-  },
+const BUILTINS: Array<{ builtin: Builtin; name: string; schedule: string; prompt: string; pick?: Doc<"jobs">["pick"] }> = [
   {
     builtin: "daily-summary",
     name: "Daily summary",
     schedule: "30 22 * * *",
+    // The nightly memory work runs on the free Z.AI model: it is long, quiet
+    // work, and must not spend the owner's OpenCode allowance.
+    pick: { engine: "opencode", model: "zai/glm-4.7-flash" },
     prompt: [
       "This is your scheduled daily summary, not a message from the owner.",
       "Read the conversations listed below with read_chat, only what was said in them since the time given, and the journal of the days they cover with brain_read (\"today\", or a day as YYYY-MM-DD).",
@@ -111,13 +103,14 @@ const BUILTINS: Array<{ builtin: Builtin; name: string; schedule: string; prompt
     builtin: "brain-review",
     name: "Brain review",
     schedule: "0 4 * * 0",
+    pick: { engine: "opencode", model: "zai/glm-4.7-flash" },
     prompt: [
       "This is your weekly Brain review, not a message from the owner. Nothing in Brain changes without the owner's yes: you only propose.",
       "Call brain_review. It has already proposed merging lines that say the same thing in nearly the same words. It lists long sections and past weeks of the journal not rolled up yet.",
       "For each long section, read it with brain_read and, where several lines say the same thing in different words or have gone stale, propose with brain_propose kind=merge or kind=condense: replaces = their ids, with = the lines that would stand instead, keeping every name, date and number, why = one short sentence.",
       "For each week listed, propose kind=rollup: replaces = the ids of its journal lines that matter, with = a summary of that week in 3 to 8 lines, why = the week.",
       "Where several lines together clearly imply a fact not written anywhere, you may propose kind=infer with page and section, replaces = those lines, with = the fact. Never invent.",
-      "Then look at how Brain is arranged, and propose only what clearly helps: for each pair in samePages, read both and, when they are about the same person or thing, propose kind=mergePages (page = the one to merge away, to = the one to keep). Lines plainly on the wrong page (about one person but on another's page, about a project but in Things to remember) go with kind=move. A section that has grown into a subject of its own goes with kind=split and a title. A trip, project or subject spread over several pages that has no page yet gets kind=topic: title, replaces = the lines it comes from, with = what they add up to in a few lines. Use brain_neighbors to see what is tied together.",
+      "Then, only where a page is clearly wrong, propose the smallest fix: kind=mergePages for a samePages pair about one person or thing, kind=move for lines plainly on the wrong page, kind=split for a section that has outgrown its page, kind=topic for a subject spread over pages. Skip that pass when nothing is clearly wrong, and read only the pages you need.",
       `This job never delivers anything to the owner: when done, reply with exactly ${QUIET}.`,
     ].join(" "),
   },
@@ -125,14 +118,15 @@ const BUILTINS: Array<{ builtin: Builtin; name: string; schedule: string; prompt
     builtin: "consolidate",
     name: "Memory consolidation",
     schedule: "0 3 * * *",
+    pick: { engine: "opencode", model: "zai/glm-4.7-flash" },
     prompt: [
       "This is your scheduled memory consolidation, not a message from the owner.",
-      "Read the journal of the last seven days with brain_read (each day as YYYY-MM-DD), and About me and Things to remember.",
+      "Read the journal of the last three days with brain_read (each day as YYYY-MM-DD), and About me and Things to remember. Read each page once, and write only what changed.",
       "Promote only what proved durable into Things to remember: standing preferences and relationships to kind=profile, phrased as directives; lasting facts, decisions and commitments to kind=core, in the section they fit. Pass basedOn, the ids of the journal lines it comes from, so it links back to them. When a new memory replaces an older one, pass the old id in supersedes.",
       "Keep them tidy: supersede what is outdated; where entries say the same thing, propose merging them with brain_propose kind=merge rather than merging them yourself, as the owner decides.",
       "Leave one-off chatter, anything already known, secrets, and anything that came from web pages, email or other tool output rather than from the owner.",
-      "Then keep what every chat is sent short: brain_summarize with no text lists the big pinned sections whose summary is missing or out of date; read each with brain_read and write its summary with brain_summarize. Then write the Lately page with brain_lately: the last 14 days in short, from the journal.",
-      "Then check About me, near the end of your instructions, against the week: if the owner said something lasting about who they are that it lacks or contradicts (their work, routine, people, how they like replies), change that section with brain_write page=\"About me\" mode=replace_section. Keep the owner's own wording and headings, add only what they said themselves, and leave it alone when nothing changed.",
+      "Then keep what every chat is sent short: brain_summarize with no text lists the big pinned sections whose summary is missing or out of date; read each with brain_read and write its summary with brain_summarize. Then write the Lately page with brain_lately: the last 7 days in short, from the journal.",
+      "Then check About me, near the end of your instructions, against those three days: if the owner said something lasting about who they are that it lacks or contradicts (their work, routine, people, how they like replies), change that section with brain_write page=\"About me\" mode=replace_section. Keep the owner's own wording and headings, add only what they said themselves, and leave it alone when nothing changed.",
       `This job never delivers anything to the owner: when done, deliver nothing by replying with exactly ${QUIET}.`,
     ].join(" "),
   },
@@ -220,10 +214,24 @@ export const tick = internalMutation({
     for (const builtin of BUILTINS) {
       const existing = jobs.find((job) => job.builtin === builtin.builtin);
       if (!existing) await insertJob(ctx, builtin);
-      // Built-in prompts are Perry's own, so a new version reaches existing installs.
-      else if (existing.prompt !== builtin.prompt) {
-        await ctx.db.patch(existing._id, { prompt: builtin.prompt });
-        existing.prompt = builtin.prompt;
+      // Built-in prompts and models are Perry's own, so a new version reaches
+      // existing installs. A model the owner picked for the job is kept.
+      else {
+        const patch: Partial<Pick<Doc<"jobs">, "prompt" | "pick">> = {};
+        if (existing.prompt !== builtin.prompt) patch.prompt = builtin.prompt;
+        if (builtin.pick && !existing.pick) patch.pick = builtin.pick;
+        if (Object.keys(patch).length) {
+          await ctx.db.patch(existing._id, patch);
+          Object.assign(existing, patch);
+        }
+      }
+    }
+    // The heartbeat is retired: an install that still has one keeps it paused,
+    // rather than spending a full agent turn on a look-over nobody asked for.
+    for (const job of jobs) {
+      if (job.builtin === "heartbeat" && job.enabled) {
+        await ctx.db.patch(job._id, { enabled: false });
+        job.enabled = false;
       }
     }
     const timezone = await timezoneOf(ctx);
