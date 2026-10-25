@@ -5,13 +5,18 @@ deallocated. It serves two routes:
 
 | Route | Who calls it | What it does |
 | --- | --- | --- |
-| `POST /api/telegram` | Telegram webhook | `/start-vm`, `/stop-vm`, `/status-vm`, `/restart-vm` from the allowed chat |
-| `POST /api/control` | Perry on the VM | The same four actions, for the bot's own commands |
-| `GET /` | you, or uptime checks | `ok` |
+| `POST /api/telegram` | Telegram webhook | `/start-vm`, `/stop-vm`, `/status-vm`, `/restart-vm` from the allowed chat; any other message wakes Perry and is handed to it |
+| `POST /api/control` | Perry on the VM, and the idle watchdog | The same four actions; a stop can wait for the webhook |
+| `GET /` | you, or uptime checks | Which settings are present as booleans, never their values |
 
 The hyphenated commands are canonical; `/start_vm`, `/stop_vm`, `/status_vm`
-and `/restart_vm` are accepted too. Any other message while Perry is off gets a
-short hint, so the bot does not look dead.
+and `/restart_vm` are accepted too.
+
+A message sent while Perry is off starts the VM, replies that it is starting,
+waits for the admin route, removes the webhook and forwards that same update to
+`ingest:fromTelegram`. So sending a normal message is enough; `/start-vm` is
+only needed when you want to start it without asking anything. Telegram retries
+a webhook it did not hear a `200` for, so each `update_id` is forwarded once.
 
 ### The menu in Telegram
 
@@ -36,10 +41,16 @@ TELEGRAM_ALLOWED_CHAT_ID      # the owner's numeric Telegram chat id
 TELEGRAM_WEBHOOK_URL          # https://<app>.azurewebsites.net/api/telegram
 TELEGRAM_WEBHOOK_SECRET       # optional but recommended; see below
 PERRY_VM_CONTROL_KEY          # long random string, shared with Perry
+PERRY_BASE_URL                # http://<vm-public-ip>:7377, to forward a waking message
+PERRY_DASHBOARD_KEY           # the VM's DASHBOARD_KEY, for the admin route
 AZURE_SUBSCRIPTION_ID
 AZURE_RESOURCE_GROUP
 AZURE_VM_NAME
 ```
+
+`PERRY_BASE_URL` is the VM's dashboard origin, reachable from App Service.
+Port 7377 is already open for the dashboard; the forward carries the same
+dashboard key, so serve it over HTTPS if the key's exposure matters to you.
 
 Enable a system-assigned managed identity and grant it **Virtual Machine
 Contributor** on the Perry VM (or its resource group). The app asks the
@@ -65,20 +76,26 @@ let the next stop install it again.
   still-running Perry polls Telegram, sees a webhook, removes it (Telegram
   refuses `getUpdates` while one is set), and the VM finishes deallocating with
   no way to send `/start-vm`.
-- There is no timer. The free plan has no always-on, so a timer would not run
-  reliably anyway; the takeover happens in a background thread, and
-  `/status-vm` re-installs the webhook whenever it finds the VM off and
-  Telegram pointed elsewhere. That is the self-heal for a stop whose background
-  takeover was cut short.
+- The idle watchdog on the VM sends `{"action": "stop", "wait": true}`. That
+  keeps the request open until the webhook is installed and only then answers,
+  because after an automatic stop there is no owner around to call
+  `/status-vm`. A deallocation slower than three minutes finishes in the
+  background, as `/stop-vm` does.
+- There is no timer in this app. The free plan has no always-on, so a timer
+  would not run reliably anyway; `/status-vm` re-installs the webhook whenever
+  it finds the VM off and Telegram pointed elsewhere. That is the self-heal for
+  a stop whose background takeover was cut short.
 - `/status-vm` reads the real `instanceView` statuses and works in either
   state. `/restart-vm` restarts the VM in place (`POST .../restart`): same
   allocation, same public IP, no deallocation, no webhook change, so Perry keeps
   polling. Use it when the bot has stopped answering but the VM is up.
 
-`POST /api/control` takes `{"action": "start" | "stop" | "restart" | "status"}`
-and requires the `x-perry-control-key` header. This is what `convex/brain.ts`
-calls when the owner sends `/start-vm`, `/stop-vm`, `/status-vm` or
-`/restart-vm` to Perry while the VM is running.
+`POST /api/control` takes
+`{"action": "start" | "stop" | "restart" | "status"}` and requires the
+`x-perry-control-key` header. A stop also takes `"wait": true`. This is what
+`convex/brain.ts` calls when the owner sends `/start-vm`, `/stop-vm`,
+`/status-vm` or `/restart-vm` to Perry while the VM is running, and what the
+idle watchdog on the VM calls when it stops it.
 
 ## Deploying
 

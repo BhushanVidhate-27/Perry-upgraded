@@ -1,0 +1,11 @@
+[Unit]
+Description=Check every five minutes whether Perry's VM can stop
+
+[Timer]
+# The first check waits out the minimum uptime; then one every five minutes.
+OnBootSec=10min
+OnUnitActiveSec=5min
+AccuracySec=30s
+
+[Install]
+WantedBy=timers.target

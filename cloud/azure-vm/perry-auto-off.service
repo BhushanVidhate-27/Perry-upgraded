@@ -1,0 +1,11 @@
+[Unit]
+Description=Stop Perry's VM when it has been idle
+Wants=network-online.target
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=/home/azureuser/perry.env
+ExecStart=/usr/bin/python3 /usr/local/bin/perry-auto-off.py
+# Deallocation plus the controller's webhook takeover can take a few minutes.
+TimeoutStartSec=5min

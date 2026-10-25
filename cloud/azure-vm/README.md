@@ -101,6 +101,74 @@ ssh -i ~/.ssh/id_rsa azureuser@172.198.61.169 "sudo bash -c '(crontab -l 2>/dev/
 The log is `/home/azureuser/midnight-build.log`. Make the entry
 `0 0 * * *` instead for UTC midnight.
 
+## Stopping when idle
+
+The VM deallocates itself after **30 minutes** with no messages and no running
+turn. Compute is then free; the 32 GB disk, the static IP and the controller
+still cost about **5.34 USD/month**. Because a cold start takes about a minute,
+30 minutes is the default: a 15-minute tail saves roughly 0.67 USD/month at
+three sessions a day and stops during natural pauses in a conversation.
+
+`auto_off.py` runs from a systemd timer. It asks Perry's own admin API and
+stops only when **all** of these hold:
+
+- no turn has `status: running`;
+- no SSH session and no image build is active;
+- the VM has been up for at least **10 minutes**;
+- the newest message in any chat is at least **30 minutes** old;
+- no enabled schedule is due within **5 minutes** (unless Perry is paused);
+- the admin route answered (if it cannot tell, it leaves the VM up).
+
+Install it on the VM:
+
+```bash
+ssh -i ~/.ssh/id_rsa azureuser@172.198.61.169 '
+  cd ~/perry-app &&
+  git pull --ff-only &&
+  sudo install -m 755 cloud/azure-vm/auto_off.py /usr/local/bin/perry-auto-off.py &&
+  sudo install -m 644 cloud/azure-vm/perry-auto-off.service cloud/azure-vm/perry-auto-off.timer /etc/systemd/system/ &&
+  sudo systemctl daemon-reload &&
+  sudo systemctl enable --now perry-auto-off.timer
+'
+```
+
+The timer checks 10 minutes after boot and every 5 minutes after that. Its
+decisions go to the journal:
+
+```bash
+systemctl list-timers perry-auto-off.timer
+sudo journalctl -u perry-auto-off.service -n 20 --no-pager
+```
+
+See the decision without stopping anything:
+
+```bash
+ssh -i ~/.ssh/id_rsa azureuser@172.198.61.169 '
+  sudo systemd-run --pipe --wait \
+    --property=EnvironmentFile=/home/azureuser/perry.env \
+    --setenv=PERRY_AUTO_OFF_DRY_RUN=1 \
+    /usr/bin/python3 /usr/local/bin/perry-auto-off.py
+'
+```
+
+Tune it in `/home/azureuser/perry.env` (then
+`sudo systemctl daemon-reload` is not needed; the next run reads it):
+
+```text
+PERRY_IDLE_MINUTES=30
+PERRY_MIN_UPTIME_MINUTES=10
+PERRY_JOB_GUARD_MINUTES=5
+```
+
+**Schedules while the VM is off** run when it next wakes, not at their exact
+time: `jobs.tick` catches up what came due. If exact-time delivery matters,
+keep the VM awake over that window, or add an external wake timer later.
+
+The next message wakes the VM: the controller starts it, waits for the admin
+route, removes the webhook and forwards that message. The measured cold start
+is **57 seconds**; budget a minute. `/start-vm` still works and skips the
+message.
+
 Everything that matters lives in `/data/.perry`: `perry.sqlite`, the workspace,
 the skills folder and career-ops' checkout. Recreating the container does not
 touch it. The image is Debian rather than Alpine because career-ops renders CV

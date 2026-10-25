@@ -21,6 +21,8 @@ os.environ.update(
         "TELEGRAM_WEBHOOK_URL": "https://perry.test/api/telegram",
         "TELEGRAM_WEBHOOK_SECRET": "telegram-secret",
         "PERRY_VM_CONTROL_KEY": "control-key",
+        "PERRY_BASE_URL": "http://perry.test:7377",
+        "PERRY_DASHBOARD_KEY": "dashboard-key",
         "AZURE_SUBSCRIPTION_ID": "sub",
         "AZURE_RESOURCE_GROUP": "rg",
         "AZURE_VM_NAME": "perry",
@@ -38,6 +40,9 @@ telegrams: list[tuple[str, dict]] = []
 replies: list[tuple[str, str]] = []
 state = {"statuses": ["Provisioning succeeded", "VM running"], "webhook": ""}
 later: list[bool] = []
+wakes: list[dict] = []
+admins: list[tuple[str, dict]] = []
+failure = {"forward": False}
 
 
 def fake_arm(method: str, path: str) -> dict:
@@ -66,11 +71,26 @@ def fake_later() -> None:
     later.append(True)
 
 
+def fake_wake_later(update: dict) -> None:
+    wakes.append(update)
+
+
+def fake_admin(path: str, args: dict | None = None):
+    admins.append((path, args or {}))
+    if failure["forward"] and path == "ingest:fromTelegram":
+        raise RuntimeError("admin route said no")
+    return "Asia/Kolkata"
+
+
 def reset(statuses: list[str], webhook: str = "") -> None:
     calls.clear()
     telegrams.clear()
     replies.clear()
     later.clear()
+    wakes.clear()
+    admins.clear()
+    failure["forward"] = False
+    controller.SEEN.clear()
     state["statuses"] = statuses
     state["webhook"] = webhook
 
@@ -101,6 +121,17 @@ def post(path: str, payload: dict | None, headers: dict | None = None) -> tuple[
     return captured["status"], body
 
 
+def get(path: str = "/") -> tuple[int, str]:
+    environ = {"REQUEST_METHOD": "GET", "PATH_INFO": path, "CONTENT_LENGTH": "0", "wsgi.input": io.BytesIO(b"")}
+    captured: dict = {}
+
+    def start_response(status: str, _headers) -> None:
+        captured["status"] = int(status.split()[0])
+
+    body = b"".join(controller.app(environ, start_response)).decode()
+    return captured["status"], body
+
+
 def message(text: str, chat: str = "42") -> dict:
     return {"message": {"chat": {"id": chat}, "text": text}}
 
@@ -110,6 +141,8 @@ def main() -> None:
     controller.telegram = fake_telegram
     controller.reply = fake_reply
     controller.take_over_later = fake_later
+    controller.wake_later = fake_wake_later
+    controller.admin_call = fake_admin
 
     # Without the host's identity endpoint there is no way to reach Azure, and
     # the controller says so instead of failing somewhere deeper.
@@ -170,10 +203,52 @@ def main() -> None:
     assert post("/api/telegram", message("/start-vm", chat="666"))[0] == 200
     assert calls == [] and replies == [], (calls, replies)
 
-    # Any other message while the VM is off gets the hint, so the bot is not dead.
+    # Any other message while the VM is off is handed to a wake worker, and
+    # Telegram gets its 200 before the minute-long boot.
     reset(["Provisioning succeeded", "Deallocated"])
-    post("/api/telegram", message("hello?"))
-    assert "start-vm" in replies[0][1], replies
+    update = {"update_id": 7, **message("hello?")}
+    assert post("/api/telegram", update)[0] == 200
+    assert wakes == [update], wakes
+    assert replies == [], replies
+
+    # The wake starts the VM, waits for the admin route, removes the webhook so
+    # Perry can poll, and forwards that same update exactly once.
+    controller.wake(update)
+    assert ("arm", "POST", VM + "/start") in calls, calls
+    assert "deleteWebhook" in methods(), methods
+    assert ("ingest:fromTelegram", {"update": update}) in admins, admins
+    assert "Starting Perry" in replies[0][1], replies
+    # Telegram retrying the webhook does not start it or forward it again.
+    controller.wake(update)
+    assert len([call for call in calls if call[2].endswith("/start")]) == 1, calls
+    assert len([path for path, _args in admins if path == "ingest:fromTelegram"]) == 1, admins
+
+    # A message that arrives while the VM is already running (or still
+    # starting) is forwarded without a second start and without the notice.
+    reset(["Provisioning succeeded", "VM running"])
+    already = {"update_id": 8, **message("still there?")}
+    controller.wake(already)
+    assert not [call for call in calls if call[2].endswith("/start")], calls
+    assert replies == [], replies
+    assert ("ingest:fromTelegram", {"update": already}) in admins, admins
+
+    # If Perry never answers, the owner is told instead of being left waiting.
+    reset(["Provisioning succeeded", "Deallocated"])
+    wait = controller.wait_for_admin
+    controller.wait_for_admin = lambda _seconds: False
+    try:
+        controller.wake({"update_id": 9, **message("anyone?")})
+    finally:
+        controller.wait_for_admin = wait
+    assert "did not come up" in replies[-1][1], replies
+    assert not [path for path, _args in admins if path == "ingest:fromTelegram"], admins
+
+    # If the wake works but the hand-off does not, the owner is told to resend.
+    reset(["Provisioning succeeded", "Deallocated"])
+    failure["forward"] = True
+    controller.wake({"update_id": 10, **message("lost?")})
+    assert "could not pass your message on" in replies[-1][1], replies
+    assert "deleteWebhook" in methods(), methods
 
     # A wrong or missing control key is refused.
     reset(["Provisioning succeeded", "VM running"])
@@ -188,10 +263,25 @@ def main() -> None:
     assert ("arm", "POST", VM + "/restart") in calls, calls
     assert json.loads(body)["ok"], body
 
+    # The idle watchdog asks for a stop that leaves Telegram here before it
+    # answers; otherwise nobody is left to wake the VM afterwards.
+    reset(["Provisioning succeeded", "Deallocated"])
+    status, body = post("/api/control", {"action": "stop", "wait": True}, {"x-perry-control-key": "control-key"})
+    assert status == 200, (status, body)
+    assert ("arm", "POST", VM + "/deallocate") in calls, calls
+    assert "setWebhook" in methods(), methods
+    assert later == [], later
+    assert "deallocated" in json.loads(body)["message"], body
+
     # An unknown action is a refusal, not a wrapper for one of the four.
     reset(["Provisioning succeeded", "VM running"])
     assert post("/api/control", {"action": "delete"}, {"x-perry-control-key": "control-key"})[0] == 400
     assert calls == [], calls
+
+    # The root says whether a wake can hand a message on, without the values.
+    status, body = get()
+    assert status == 200, status
+    assert json.loads(body)["forwarding"] is True, body
 
     # The webhook secret is enforced when it is set.
     reset(["Provisioning succeeded", "VM running"])

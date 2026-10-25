@@ -5,6 +5,12 @@ Telegram talks to this app for `/start-vm`, `/stop-vm`, `/status-vm` and
 app is silent; Perry's own copies of those commands reach it over
 `POST /api/control`.
 
+When any other message arrives while the VM is off, this app starts it, waits
+for Perry's admin route, removes the webhook and forwards that one update, so
+sending a message is all it takes to wake Perry. An idle watchdog on the VM
+stops it with `{"action": "stop", "wait": true}`, which installs the webhook
+before answering.
+
 One file, no framework: a WSGI callable, so App Service's gunicorn serves it
 and the only dependency is gunicorn itself.
 
@@ -25,14 +31,12 @@ import urllib.request
 from http import HTTPStatus
 
 SAVING = "Perry is saving state and shutting down to save Azure credits."
+SAVED = "Perry is deallocated. Telegram is handled by the controller, so the next message wakes it."
 STARTING = "Starting Perry. It usually takes a minute or two. I will be back when the VM is ready."
+WAKING = "Starting Perry. I will pass your message on as soon as it is ready; that usually takes about a minute."
 RESTARTING = "Restarting Perry. Back in a minute or two."
-OFF_HINT = (
-    "Perry is off, so it cannot answer that yet.\n\n"
-    "/start-vm   start it (a minute or two)\n"
-    "/status-vm  Azure VM state"
-)
 FAILED = "VM control failed: {error}"
+FORWARD_FAILED = "Perry is up, but I could not pass your message on: {error}. Send it again."
 
 # Telegram's command menu: what the blue menu button lists, per bot, so it
 # outlives this app's instances. Names are lowercase letters, digits and "_"
@@ -66,6 +70,13 @@ COMMANDS = [
 # How long a stop may take before the takeover gives up. Deallocation takes a
 # minute or two; the rest is slack for a slow Azure.
 TAKEOVER_SECONDS = 600
+# An idle stop holds its request open until the webhook is back, under App
+# Service's request timeout; a slow deallocation finishes in the background.
+AUTO_STOP_SECONDS = 180
+# How long a wake waits for Perry's admin route, which is ready once the VM,
+# container and backend are up. Measured cold start: about a minute.
+ADMIN_SECONDS = 180
+ADMIN_POLL_SECONDS = 3
 
 
 def setting(name: str) -> str:
@@ -224,10 +235,119 @@ def start_vm() -> str:
     return STARTING
 
 
-def stop_vm() -> str:
+def stop_vm(wait: bool = False) -> str:
+    """Deallocate; `wait` installs the webhook before answering (idle auto-off).
+
+    The automatic stop has nobody to call `/status-vm` afterwards, so it waits
+    for the VM to be really gone and Telegram to point here, and only says
+    `SAVED` when that happened. A slow deallocation carries on in the
+    background, as `/stop-vm` always has.
+    """
     arm("POST", vm_path() + "/deallocate")
+    if wait and take_over_telegram(wait_seconds=AUTO_STOP_SECONDS):
+        return SAVED
     take_over_later()
     return SAVING
+
+
+def admin_call(path: str, args: dict | None = None):
+    """Call one of Perry's internal functions, with the dashboard key."""
+    base = setting("PERRY_BASE_URL").rstrip("/")
+    request = urllib.request.Request(
+        f"{base}/api/backend/admin",
+        data=json.dumps({"path": path, "args": args or {}}).encode(),
+        headers={"content-type": "application/json", "x-perry-key": setting("PERRY_DASHBOARD_KEY")},
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=30) as response:
+        body = json.loads(response.read())
+    if body.get("error"):
+        raise RuntimeError(str(body["error"]))
+    return body.get("value")
+
+
+def wait_for_admin(seconds: float) -> bool:
+    """Wait until Perry's admin route answers; False if it never came up."""
+    deadline = time.monotonic() + seconds
+    while True:
+        try:
+            admin_call("jobs:ownerTimezone")
+            return True
+        except Exception:
+            if time.monotonic() >= deadline:
+                return False
+            time.sleep(ADMIN_POLL_SECONDS)
+
+
+# Telegram retries a webhook it did not hear a 200 for, so one update must not
+# wake the VM twice or be handed to Perry twice.
+SEEN: dict[int, float] = {}
+SEEN_LOCK = threading.Lock()
+
+
+def claim_update(update_id: int) -> bool:
+    """True the first time this update is seen, False for a retry."""
+    now = time.monotonic()
+    with SEEN_LOCK:
+        for old in [key for key, at in SEEN.items() if at < now - 86400]:
+            del SEEN[old]
+        if update_id in SEEN:
+            return False
+        SEEN[update_id] = now
+        while len(SEEN) > 1000:
+            del SEEN[min(SEEN, key=lambda key: SEEN[key])]
+        return True
+
+
+def wake(update: dict) -> None:
+    """Wake the VM for one message, then hand that same message to Perry.
+
+    Telegram delivered the update here because the VM was off, so Perry's
+    poller will never see it; it is forwarded once the admin route answers.
+    """
+    update_id = update.get("update_id")
+    if isinstance(update_id, int) and not claim_update(update_id):
+        return
+    message = update.get("message") or {}
+    chat_id = str((message.get("chat") or {}).get("id", ""))
+    if vm_offline(vm_status()):
+        if chat_id:
+            reply(chat_id, WAKING)
+        arm("POST", vm_path() + "/start")
+    if not wait_for_admin(ADMIN_SECONDS):
+        if chat_id:
+            reply(chat_id, FAILED.format(error="Perry did not come up in time"))
+        return
+    # Perry's poller removes a webhook on its own first poll; removing it here
+    # means that poll starts from the update after this one.
+    try:
+        telegram("deleteWebhook", {"drop_pending_updates": False})
+    except Exception as error:
+        print(f"could not remove the webhook after waking the VM: {error}")
+    try:
+        admin_call("ingest:fromTelegram", {"update": update})
+    except Exception as error:
+        if chat_id:
+            reply(chat_id, FORWARD_FAILED.format(error=error))
+
+
+def wake_safely(update: dict) -> None:
+    """Wake out of band, so Telegram gets its 200 before the minute-long boot."""
+    message = update.get("message") or {}
+    chat_id = str((message.get("chat") or {}).get("id", ""))
+    try:
+        wake(update)
+    except Exception as error:
+        print(f"could not wake the VM for update {update.get('update_id')}: {error}")
+        try:
+            if chat_id and authorized(chat_id):
+                reply(chat_id, FAILED.format(error=error))
+        except Exception:
+            pass
+
+
+def wake_later(update: dict) -> None:
+    threading.Thread(target=wake_safely, args=(update,), daemon=True).start()
 
 
 def restart_vm() -> str:
@@ -295,8 +415,9 @@ def telegram_webhook(update: dict, start_response):
             reply(chat_id, stop_vm())
         elif command in ("/restart-vm", "/restart_vm"):
             reply(chat_id, restart_vm())
-        elif command:
-            reply(chat_id, OFF_HINT)
+        else:
+            # Any other message wakes Perry and is handed to it once it is up.
+            wake_later(update)
         return respond(start_response, 200, "ok")
     except Exception as error:
         try:
@@ -316,7 +437,7 @@ def control(request: dict, environ, start_response):
         if action == "start":
             message = start_vm()
         elif action == "stop":
-            message = stop_vm()
+            message = stop_vm(wait=request.get("wait") is True)
         elif action == "restart":
             message = restart_vm()
         elif action == "status":
@@ -351,6 +472,10 @@ def app(environ, start_response):
                     "ok": True,
                     "webhook_secret": bool(os.environ.get("TELEGRAM_WEBHOOK_SECRET", "").strip()),
                     "control_key": bool(os.environ.get("PERRY_VM_CONTROL_KEY", "").strip()),
+                    "forwarding": bool(
+                        os.environ.get("PERRY_BASE_URL", "").strip()
+                        and os.environ.get("PERRY_DASHBOARD_KEY", "").strip()
+                    ),
                     "vm": os.environ.get("AZURE_VM_NAME", ""),
                 }
             ),
