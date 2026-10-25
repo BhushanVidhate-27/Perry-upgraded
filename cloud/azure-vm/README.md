@@ -84,6 +84,23 @@ docker logs --tail 40 perry        # expect "Telegram: polling for messages"
 If it does not come up, `docker rm -f perry && docker rename perry-old perry
 && docker start perry` puts the old one back.
 
+### A build at midnight
+
+`cloud/azure-vm/midnight-build.sh` does the same unattended: reset to
+`origin/main`, build, swap, wait for health, put the old container back on
+failure, publish the Telegram menu from the controller's `COMMANDS`, and say
+how it went in Telegram. It takes its own cron entry out first, so it runs
+once. Install it for midnight IST (18:30 UTC) with:
+
+```bash
+scp -i ~/.ssh/id_rsa cloud/azure-vm/midnight-build.sh azureuser@172.198.61.169:/home/azureuser/
+ssh -i ~/.ssh/id_rsa azureuser@172.198.61.169 'chmod +x /home/azureuser/midnight-build.sh'
+ssh -i ~/.ssh/id_rsa azureuser@172.198.61.169 "sudo bash -c '(crontab -l 2>/dev/null; echo \"30 18 * * * /home/azureuser/midnight-build.sh\") | crontab -'"
+```
+
+The log is `/home/azureuser/midnight-build.log`. Make the entry
+`0 0 * * *` instead for UTC midnight.
+
 Everything that matters lives in `/data/.perry`: `perry.sqlite`, the workspace,
 the skills folder and career-ops' checkout. Recreating the container does not
 touch it. The image is Debian rather than Alpine because career-ops renders CV
