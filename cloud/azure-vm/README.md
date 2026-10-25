@@ -58,6 +58,15 @@ cd ~/perry-app
 docker build -t perry:new .
 ```
 
+`next build` needs more memory than the VM has while Perry runs: without swap
+the kernel kills it (`exit 137`). A 4 GB swap file is enough, and keeps Perry
+alive during a build:
+
+```bash
+fallocate -l 4G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+echo "/swapfile none swap sw 0 0" >> /etc/fstab
+```
+
 Then swap it in, keeping the old container until the new one is healthy:
 
 ```bash
