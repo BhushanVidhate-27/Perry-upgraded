@@ -247,7 +247,10 @@ export class OpenCodeEngine extends AcpEngine {
   async login(): Promise<LoginFlow> {
     if ((await this.integrations()).ids.length) return { interaction: null, done: Promise.resolve(), cancel: () => {} };
     const waiting = waitForSignIn(async () => (await this.integrations()).ids.length > 0, "Connecting OpenCode");
-    return { interaction: { type: "terminal", command: "opencode auth login" }, done: waiting.done, cancel: waiting.cancel };
+    // A provider's models are only known once it is connected: drop the list
+    // so the status probe that follows the sign-in asks again.
+    const done = waiting.done.then(() => { this.listed = null; });
+    return { interaction: { type: "terminal", command: "opencode auth login" }, done, cancel: waiting.cancel };
   }
 
   async logout(): Promise<void> {
