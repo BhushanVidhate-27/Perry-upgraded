@@ -15,15 +15,17 @@ import { commandOf, runCli } from "./process";
  *   - `opencode acp` speaks ACP v1 (its initialize reports loadSession,
  *     session resume, images and HTTP MCP).
  *   - Models and thinking level are session config options ("model",
- *     "effort"); `opencode models` lists them without a session, so only
- *     OpenCode's own bundled provider (`opencode/`, free with no sign-in) is
- *     offered here rather than the hundreds of models of providers this
- *     computer has not connected. Deprecated ids stay in that list (OpenCode's
- *     own default, exo-free, is one), so no id is trusted as the default and
- *     the first is taken; a session's learned efforts are kept per id.
+ *     "effort"); `opencode models` lists them without a session: the free
+ *     bundled provider (`opencode/`) and every provider connected with
+ *     `opencode auth login`. All are offered, bundled first (offeredModels),
+ *     so a bundled plan that is used up can be left for a provider's own
+ *     quota. Deprecated ids stay in that list (OpenCode's own default,
+ *     exo-free, is one), so no id is trusted as the default; the first
+ *     bundled model is. A session's learned efforts are kept per id.
  *   - Its bundled models need no sign-in at all, so an installed OpenCode is
  *     usable as it is; `opencode auth login` connects the owner's own
- *     providers, which Perry never reads.
+ *     providers, whose models Perry offers but whose credentials it never
+ *     reads.
  *   - It has no session modes that are access levels (build and plan are how
  *     it runs, not what it may do) and its permission defaults allow most
  *     tools, so Perry leaves its mode alone and answers whatever it does ask
@@ -57,6 +59,37 @@ export function opencodeCommand(): { command: string; args: string[] } {
     }
   }
   return { command: "opencode", args: [] };
+}
+
+// --- Backup for model switching ----------------------------------------------
+
+/**
+ * The models /model offers, from `opencode models`: OpenCode's free bundled
+ * ones first, then every model of a provider connected with `opencode auth
+ * login`. Keeping the bundled ones first keeps the free model the default, so
+ * connecting a provider never moves a chat that has not picked one; switching
+ * to a provider is how a chat gets past a bundled plan that is used up.
+ *
+ * Bundled names drop OpenCode's `opencode/` prefix (the engine is already
+ * named); a provider's id keeps its own prefix, which tells the providers
+ * apart. Duplicate ids are listed once.
+ */
+export function offeredModels(ids: string[], learned: EngineModel[] = []): EngineModel[] {
+  const seen = new Map(learned.map((model) => [model.id, model]));
+  const unique = [...new Set(ids.map((id) => id.trim()).filter(Boolean))];
+  const ordered = [
+    ...unique.filter((id) => id.startsWith(BUNDLED)),
+    ...unique.filter((id) => !id.startsWith(BUNDLED)),
+  ];
+  return ordered.map((id, index) => {
+    const known = seen.get(id);
+    return {
+      id,
+      name: id.startsWith(BUNDLED) ? id.slice(BUNDLED.length) : id,
+      isDefault: index === 0,
+      ...(known?.efforts?.length ? { efforts: known.efforts, defaultEffort: known.defaultEffort } : {}),
+    };
+  });
 }
 
 export class OpenCodeEngine extends AcpEngine {
@@ -102,7 +135,7 @@ export class OpenCodeEngine extends AcpEngine {
     return this.cli.args.length ? undefined : this.cli.command;
   }
 
-  /** Its bundled models are asked again. */
+  /** Its model list is asked again. */
   reload(): void {
     this.kill();
     this.listed = null;
@@ -119,24 +152,27 @@ export class OpenCodeEngine extends AcpEngine {
       return { ...base, installed: false, signedIn: false, message: INSTALL, error: error instanceof Error ? error.message : String(error) };
     }
     try {
-      const models = await this.bundledModels();
+      const models = await this.catalogue();
       // Its bundled models need no sign-in, so installed and with models is ready; the account is OpenCode's own.
       if (!models.length) {
         return { ...base, installed: true, version, signedIn: false, message: "OpenCode has no models to run. Run `opencode auth login` on this computer to connect a provider." };
       }
+      const connected = models.some((model) => !model.id.startsWith(BUNDLED));
       return {
         ...base, installed: true, version, signedIn: true,
-        auth: { type: "providers", label: "its bundled models" },
+        auth: { type: "providers", label: connected ? "its bundled models and the providers connected here" : "its bundled models" },
         models,
-        message: "Runs OpenCode's bundled models here; run `opencode auth login` on this computer to connect your own providers.",
+        message: connected
+          ? "Runs OpenCode's bundled models and the providers connected here; switch with /model when a plan is used up."
+          : "Runs OpenCode's bundled models here; run `opencode auth login` on this computer to add a provider's models, then switch to one with /model when a plan is used up.",
       };
     } catch (error) {
       return { ...base, installed: true, version, signedIn: false, error: error instanceof Error ? error.message : String(error) };
     }
   }
 
-  /** OpenCode's bundled (`opencode/`) models, from `opencode models`, with the efforts sessions have taught it. */
-  private async bundledModels(): Promise<EngineModel[]> {
+  /** Every model `opencode models` lists: bundled first, then the providers connected here (offeredModels). */
+  private async catalogue(): Promise<EngineModel[]> {
     if (!this.listed || Date.now() - this.listed.at > 2 * 60_000) {
       // A fresh container has no OpenCode service yet: the first ask starts it
       // and can come back with "plugins did not finish activating". Retry
@@ -147,16 +183,7 @@ export class OpenCodeEngine extends AcpEngine {
         ran = await runCli(this.cli, ["models"], 30_000);
       }
       if (ran.code !== 0) throw new Error(ran.stderr.trim().split("\n")[0] || "opencode models failed.");
-      const learned = new Map(this.learnedModels().map((model) => [model.id, model]));
-      const models = ran.stdout.split("\n").map((line) => line.trim())
-        .filter((id) => id.startsWith(BUNDLED))
-        .map((id, index): EngineModel => {
-          const seen = learned.get(id);
-          // The id keeps OpenCode's `opencode/` provider prefix (the engine needs
-          // it); the name drops it, as the engine is already named in the UI.
-          return { id, name: id.slice(BUNDLED.length), isDefault: index === 0, ...(seen?.efforts?.length ? { efforts: seen.efforts, defaultEffort: seen.defaultEffort } : {}) };
-        });
-      this.listed = { at: Date.now(), models };
+      this.listed = { at: Date.now(), models: offeredModels(ran.stdout.split("\n"), this.learnedModels()) };
     }
     return this.listed.models;
   }
