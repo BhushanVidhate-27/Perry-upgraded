@@ -8,7 +8,7 @@ import { ownerClock, ownerNow, QUIET } from "./jobs";
 import {
   ACCESS_LABELS, careerAsk, chatModel, currentModel, describeAccess, describeEfforts, describeMissed, describeModels, describePassword, describeStorage, describeSystem, effortUnused, parseAccessCommand,
   parseMissedCommand, parseModelCommand, parsePasswordCommand, parseStorageCommand, parseSystemCommand, parseThinkCommand, parseWebCommand, PAUSED_ERROR, PAUSED_OWNER, PAUSED_REPLY, pickAccess, pickEffort, pickModel, runLabel,
-  turnEffort, type MissedRun, type ModelOption,
+  describeSchedules, scheduleAsk, turnEffort, type MissedRun, type ModelOption,
 } from "./lib/commands";
 import { b2Creds } from "./media";
 import { b2Delete, b2Download, b2List, b2Upload } from "./lib/b2";
@@ -44,6 +44,8 @@ Your private assistant.
   /think    list the thinking levels; /think <level> sets this chat's
   /access   ask, auto or full: whether it asks before acting
   /career   job search: /career <mode|job url>, or /career alone for the modes
+  /schedules  what runs on a schedule, and when each runs next
+  /schedule /schedule <when> <what> sets one up, e.g. /schedule every weekday at 8:00 send a briefing
   /usage    how much of this chat's model plan is used, and what is left
   /stop     stop the reply I am writing
   /pause    stop everything I am doing, and start nothing new
@@ -263,6 +265,14 @@ async function runCommand(
       if (!engine) return describeUsage(undefined, undefined, Date.now());
       const read = await ctx.runQuery(internal.usage.forEngine, { engine });
       return describeUsage(engine, read.usage, Date.now(), { timeZone: read.timeZone, share: read.share });
+    }
+
+    // What runs on a schedule. "/schedule <words>" never reaches here: it is a
+    // turn (scheduleAsk) that ends in create_job.
+    case "/schedules":
+    case "/schedule": {
+      const jobs = await ctx.runQuery(internal.jobs.list, {});
+      return describeSchedules(jobs, await ctx.runQuery(internal.jobs.ownerTimezone, {}));
     }
 
     case "/status": {
@@ -704,7 +714,8 @@ export const handleTurn = internalAction({
     try {
       // "/career <mode|job>" is a turn, not plumbing: it names the career-ops skill.
       const career = guest ? null : careerAsk(args.text);
-      const command = !career && !guest && channel !== "web" && !args.fromWeb && args.text.startsWith("/") && !args.telegramMedia?.length && !args.storedMedia?.length;
+      const schedule = guest ? null : scheduleAsk(args.text);
+      const command = !career && !schedule && !guest && channel !== "web" && !args.fromWeb && args.text.startsWith("/") && !args.telegramMedia?.length && !args.storedMedia?.length;
       // Paused (pause.ts): a schedule's or task's turn on its way is held for the owner; a message from the phone is
       // answered that Perry is paused, the owner's with how to resume; commands still work, /resume among them.
       // The web app's own messages go on to be refused where the turn is queued, and the chat shows why.
@@ -720,7 +731,7 @@ export const handleTurn = internalAction({
 
       // Telegram files live on Telegram's servers; bring them into storage so
       // they show in the chat and reach Codex like any attachment.
-      let prompt = career ?? args.text;
+      let prompt = career ?? schedule ?? args.text;
       const attachmentIds = [...(args.attachmentIds ?? [])];
       if (args.telegramMedia?.length) {
         const messageKey = crypto.randomUUID();

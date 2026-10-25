@@ -1,63 +1,82 @@
 # Perry on Azure — state, 2026-10-25
 
-Everything below was verified against the live system, not assumed. Tokens and
-keys live in `/tmp/perry.env` (local) and `/home/azureuser/perry.env` (VM).
-Never print them.
+Verified against the live system. Tokens and keys live in `/tmp/perry.env`
+(local) and `/home/azureuser/perry.env` (VM). Never print them.
 
 ## Live
 
-- VM `perry-vm` (Standard_B2ls_v2, 172.198.61.169) running, container `perry`
-  on the rebuilt image `perry:new` (0b9128e27d7b), `/data/.perry` mounted,
-  Telegram polling, runner connected, 584 backend functions.
-- Controller `https://perry-ctrl-26af6748.azurewebsites.net` (F1 free) live.
-  `/` reports ok, webhook_secret true, control_key true.
-- Telegram menu (17 commands) registered on `@bhushansPerryBot`, plus bot
-  description and short description.
+- VM `perry-vm` (Standard_B2ls_v2, 172.198.61.169), 4 GB swap file added so
+  image builds no longer die with `exit 137`.
+- Container `perry` on image `perry:new` = `6891b664bfd4`, `/data/.perry`
+  mounted, `Telegram: polling for messages`, backend health 200.
+- Controller `https://perry-ctrl-26af6748.azurewebsites.net` (F1 free) live and
+  deployed from `7dd38c9`.
+- Telegram menu: 19 commands — `/start`, `/career`, `/help`, `/status_vm`,
+  `/start_vm`, `/stop_vm`, `/restart_vm`, `/model`, `/think`, `/access`,
+  `/usage`, `/stop`, `/pause`, `/resume`, `/compact`, `/note`, `/status`,
+  `/pair`, `/reset`.
 
-## What was proven today
+## The one thing that is broken, and it is not Perry
 
-- Image carries the `_vm` → `-vm` fold: `grep -n _vm /app/convex/brain.ts`
-  inside `perry:new` shows line 75.
-- Menu spelling reaches the VM: a synthetic Telegram update `"/status_vm"`
-  through `POST /api/backend/admin` → `ingest:fromTelegram` returned 200 with no
-  error in the container log (real parser, brain, controller, Bot API).
-- `/stop_vm` from the same path deallocated the VM within 20 s.
-- The controller took Telegram over (webhook URL became the App Service URL,
-  pending 0, no last error), answered `/status_vm` with 200 `ok`, refused the
-  same request without the secret header (401).
-- `/start_vm` to the controller returned 200, removed the webhook, VM went
-  running, container back up in ~57 s, polling resumed.
-- `check_app.py` passes, `pnpm typecheck` clean, repo at `f7f1db2`.
+OpenCode's **free** allowance is used up: every one of the nine models says
+`Internal error: Free usage limit reached. Connect a provider or subscribe to
+OpenCode Go`. It is one account-wide allowance, not per model — proven by
+switching the chat to `opencode/big-pickle` from Telegram (the run records that
+model) and getting the same refusal.
 
-## Only the owner can confirm (10 seconds)
+What Perry does about it:
+- `/model` (menu or typed) still answers, because commands never reach the
+  engine. Its list now adds that the engine's plan is used up, so switching
+  cannot help yet.
+- A turn refused for the limit now ends with "That model's plan is used up.
+  /model lists this chat's models; /model <name> switches." instead of a raw
+  engine string.
 
-Four messages should be sitting in Telegram from the tests: `/status_vm` →
-"Azure VM: … VM running", `/stop_vm` → "Perry is saving state…",
-`/status_vm` while off → "…deallocated", `/start_vm` → "Starting Perry…".
-Open the blue menu button and tap any command once; that is the last link
-(Telegram's own delivery) nothing else can exercise.
+Ways out, in order of effort:
+1. Wait for the free allowance to reset (it resets on OpenCode's schedule).
+2. Connect a provider inside OpenCode (`opencode auth login`) — a Gemini,
+   Groq/OpenAI-compatible or Anthropic key; its models then appear in `/model`.
+   Do this **inside the container**, and note the auth file lives in
+   `/root/.local/share/opencode`, which is not on the volume yet (see below).
+3. Subscribe to OpenCode Go.
 
-## Open, not started
+## Known rough edge
+
+OpenCode's data (`/root/.local/share/opencode`: sessions, auth) is outside
+`/data/.perry`, so every container recreate loses the engine session
+("could not resume this chat's session") and any provider auth. Moving it onto
+the volume via `XDG_DATA_HOME=/data/.perry/opencode` in `perry.env` fixes both;
+not done yet.
+
+## Verified today
+
+- Menu spelling works: `/status_vm` from the menu reaches Perry, which folds
+  `_vm` → `-vm` and calls the controller.
+- `/stop_vm` deallocated the VM in 20 s; the controller took Telegram over,
+  answered `/status_vm` with 200, refused a request without the secret (401),
+  then `/start_vm` woke the VM and removed the webhook. Container back in 57 s.
+- `/model big-pickle` switched the chat from Telegram while the plan was out.
+- `pnpm typecheck` and `cloud/azure-vm-controller/check_app.py` pass.
+
+## Open
 
 - career-ops onboarding in `/data/.perry/workspace/career-ops`: `cv.md`,
   `config/profile.yml`, `modes/_profile.md`, `portals.yml`.
-- NSG rule `open-port-7377` is still `*`. Port 7377 carries
-  `/api/backend/admin` (dashboard key) and the dashboard; narrow it to the
-  owner's IP or close it and use SSH tunnels.
-- `perry:latest` (3.36 GB) is the rollback image from before today's build;
-  delete it once nothing regresses.
-- OpenCode sessions live in `/root/.local/share/opencode`, not on the volume, so
-  a container recreate starts a fresh engine session. Perry's memory is
-  unaffected (`/data/.perry` keeps it).
+- NSG rule `open-port-7377` is still `*`; port 7377 carries the dashboard and
+  `/api/backend/admin` (key-gated). Narrow it or use an SSH tunnel.
+- `perry:latest` (3.36 GB, 41 h old) is the rollback image; delete when happy.
+- Build images on the Mac and copy them over to stop paying 15 minutes of VM
+  CPU per change; the VM build only exists because it was the simplest path.
 
-## Rebuild and swap (after editing app code)
+## Rebuild and swap
 
 ```bash
 ssh -i ~/.ssh/id_rsa azureuser@172.198.61.169 'cd /home/azureuser/perry-app && git fetch -q origin && git reset --hard -q origin/main && docker build -t perry:new . > /home/azureuser/build.log 2>&1'
 ssh -i ~/.ssh/id_rsa azureuser@172.198.61.169 'docker rm -f perry && docker run -d --name perry --restart unless-stopped -p 7377:7377 --env-file /home/azureuser/perry.env -v /data/.perry:/data/.perry --log-opt max-size=10m perry:new'
 ```
 
-The build takes ~15 minutes on 2 vCPU. `perry:latest` is the previous image.
+While a build runs the VM is under heavy load and SSH may time out; use
+`az vm run-command invoke` for status.
 
 ## Deploy the controller
 
@@ -66,20 +85,17 @@ cd cloud/azure-vm-controller && python3 check_app.py && zip -q /tmp/ctrl.zip app
 az webapp deployment source config-zip -g perry-rg -n perry-ctrl-26af6748 --src /tmp/ctrl.zip
 ```
 
-Setting changes take up to ~2 min to apply (a stale instance can serve old env).
-
 ## Cost
 
-`B2ls_v2` ≈ $0.0403/hr running (~$29/month if never stopped); controller F1 is
-free; disk is reused. `/stop-vm` deallocates and keeps the static IP; the
-controller answers while the VM is off.
+`B2ls_v2` ≈ $0.0403/hr while running (~$29/month if never stopped); controller
+F1 free; disk reused. `/stop-vm` deallocates and keeps the static IP.
 
 ## Key paths
 
 - `cloud/azure-vm-controller/app.py` — WSGI controller; `COMMANDS`,
   `install_commands()`, webhook takeover.
 - `cloud/azure-vm-controller/check_app.py` — offline self-check.
-- `cloud/azure-vm-controller/README.md` — deploy, settings, menu.
-- `cloud/azure-vm/README.md` — VM, disk, container, career-ops runbook.
-- `convex/brain.ts` — command routing; `_vm` → `-vm` fold in `runCommand`.
-- `convex/lib/commands.ts` — `careerAsk()`.
+- `cloud/azure-vm/README.md` — VM, swap, container, career-ops runbook.
+- `convex/brain.ts` — command routing; `_vm` → `-vm` fold; `/model` quota note.
+- `convex/codex.ts` — `failureText()`, the refused-turn message.
+- `convex/lib/usage.ts` — `LIMIT_HIT`, `standing()`.

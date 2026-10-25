@@ -4,6 +4,7 @@
  */
 
 import { ENGINE_LABELS, ENGINES, modelKey, parseModelKey, type EngineKind } from "./engines";
+import { describeSchedule } from "../../lib/when";
 
 export type ModelOption = {
   id: string;
@@ -360,6 +361,71 @@ export function careerAsk(text: string): string | null {
   if (!match) return null;
   const ask = (match[1] ?? "").trim();
   return ask ? `$career-ops ${ask}` : "$career-ops";
+}
+
+// --- Schedules (/schedule, /schedules) -------------------------------------
+
+/** A scheduled job, as jobs.list returns it, in what /schedules prints. */
+export type ScheduleRow = {
+  name: string;
+  schedule?: string;
+  runAt?: number;
+  trigger?: { label: string };
+  enabled: boolean;
+  builtin?: string;
+  nextRunAt: number;
+  lastError?: string;
+};
+
+/**
+ * "/schedule <when> <what>" is a turn, not plumbing: the owner's words with the
+ * instruction that turns them into a job through create_job. Alone, it is not
+ * a turn; the command lists what is already scheduled.
+ */
+export function scheduleAsk(text: string): string | null {
+  const match = text.trim().match(/^\/schedule(?:@\S+)?(?:\s+([\s\S]*))?$/i);
+  const ask = (match?.[1] ?? "").trim();
+  if (!ask) return null;
+  return (
+    `Set this up as a scheduled job with create_job; do not do the work now. My words: ${ask}\n\n` +
+    "Work out the time from those words in my timezone. If the time, or what each run should do, is unclear, ask me before creating it. " +
+    "Give it a short name, write its prompt so each run stands on its own, and tell me when it will next run."
+  );
+}
+
+/**
+ * What "/schedules" prints: every job of the owner's, when it runs next,
+ * numbered so the owner can name one back. Times are on the owner's clock.
+ * Perry's own upkeep jobs are left out, as they are from the dashboard's
+ * Schedules list, and so is a one-time job whose time has gone.
+ */
+export function describeSchedules(jobs: ScheduleRow[], timeZone: string): string {
+  const now = Date.now();
+  const mine = jobs.filter((job) => !job.builtin && !(job.runAt !== undefined && !job.enabled && job.runAt <= now));
+  if (!mine.length) {
+    return "Nothing is scheduled right now.\n\nMake one with /schedule <when> <what>, for example /schedule every weekday at 8:00 send me a briefing.";
+  }
+  const clock = (at: number) => {
+    try {
+      return new Intl.DateTimeFormat("en-GB", { timeZone, weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false }).format(at);
+    } catch {
+      return new Date(at).toISOString().slice(0, 16).replace("T", " ");
+    }
+  };
+  const rows = [...mine]
+    .sort((a, b) => Number(b.enabled) - Number(a.enabled) || a.nextRunAt - b.nextRunAt)
+    .map((job, index) => {
+      const every = job.trigger ? job.trigger.label : job.schedule ? describeSchedule(job.schedule) ?? `cron ${job.schedule}` : "once";
+      const when = job.trigger ? "on its event" : job.enabled ? `next ${clock(job.nextRunAt)}` : "paused";
+      const broke = job.lastError ? `\n   last error: ${job.lastError.slice(0, 140)}` : "";
+      return `${index + 1}. ${job.name}: ${every}, ${when}${broke}`;
+    });
+  return [
+    `${mine.length} schedule${mine.length === 1 ? "" : "s"}:`,
+    ...rows,
+    "",
+    "Make one with /schedule <when> <what>. Name one to have me pause, run or remove it.",
+  ].join("\n");
 }
 
 // --- Password commands (/password) -----------------------------------------
