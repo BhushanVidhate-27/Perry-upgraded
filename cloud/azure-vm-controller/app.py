@@ -39,6 +39,7 @@ FAILED = "VM control failed: {error}"
 # (Telegram refuses a hyphen), and the four VM ones are the same commands Perry
 # answers as /start-vm and so on: it folds a trailing "_vm" back to "-vm".
 COMMANDS = [
+    ("start", "Say hello; shows what I can do"),
     ("career", "Job search: /career <mode|job url>, or /career alone for the modes"),
     ("help", "Commands, and how I work"),
     ("status_vm", "Azure VM state"),
@@ -55,6 +56,7 @@ COMMANDS = [
     ("compact", "Shrink what I carry of this chat"),
     ("note", "Add to your Inbox note"),
     ("status", "Plumbing and recent errors"),
+    ("pair", "A fresh pairing code, in the owner's chat"),
     ("reset", "Save this chat to memory, then start fresh"),
 ]
 

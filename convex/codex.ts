@@ -14,7 +14,7 @@ import { ABSOLUTE_PATH, describePath, stepsKey } from "./media";
 import { index as indexInLibrary } from "./library";
 import { QUIET } from "./jobs";
 import { HIDDEN, hide, savedValues } from "./vault";
-import { takeFromOutbox } from "./conversations";
+import { LIMIT_HIT } from "./lib/usage";import { takeFromOutbox } from "./conversations";
 import { moveChat, retryable } from "./routing";
 import { engineLockable, engineReady, engineUsable, isOnline, recordEngines, resumeOf, statusesOf, tooOld } from "./engines";
 import { vAccess, vCodexModel, vEngine, vRoute, vSpanKind, vSpanStatus, vTurnAttachment, vUsage } from "./schema";
@@ -1116,6 +1116,17 @@ function citedMemories(response?: string): { text?: string; ids: string[] } {
   return { text: response.slice(0, match.index).trimEnd(), ids: match[1].split(/[\s,]+/).filter(Boolean) };
 }
 
+/**
+ * What a failed turn says on a phone. A plan used up names the way out: /model
+ * is a command, so it answers even when the engine has no room left.
+ */
+function failureText(job: { error?: string; response?: string }): string {
+  const said = `${job.response ? `${job.response}\n\n` : ""}That broke: ${job.error}`;
+  return job.error && LIMIT_HIT.test(job.error)
+    ? `${said}\n\nThat model's plan is used up. /model lists this chat's models; /model <name> switches to one with room.`
+    : said;
+}
+
 export const finalizeTurn = internalAction({
   args: { id: v.id("codexTurns") },
   returns: v.null(),
@@ -1218,7 +1229,7 @@ export const finalizeTurn = internalAction({
         : [];
       try {
         const answer = job.error
-          ? `${job.response ? `${job.response}\n\n` : ""}That broke: ${job.error}`
+          ? failureText(job)
           : reply || (files.length ? "" : "No reply came back.");
         const text = answer;
         // A streamed reply lands in the message that showed it growing, unless a file carries it.
@@ -1234,7 +1245,7 @@ export const finalizeTurn = internalAction({
         ? await ctx.runQuery(internal.codex.turnFiles, { conversationId: conversation._id, messageKey: job.mediaKey })
         : [];
       const answer = job.error
-        ? `${job.response ? `${job.response}\n\n` : ""}That broke: ${job.error}`
+        ? failureText(job)
         : reply || (files.length ? "" : "No reply came back.");
       if (answer) await ctx.runMutation(internal.whatsapp.send, { to: conversation.externalId, text: answer });
       for (const file of files) {
