@@ -7,17 +7,24 @@ Verified against the live system. Tokens and keys live in `/tmp/perry.env`
 
 - VM `perry-vm` (Standard_B2ls_v2, 172.198.61.169), 4 GB swap file added so
   image builds no longer die with `exit 137`.
-- Container `perry` on image `perry:new` = `769084e965a4`, deployed from
-  `9736a3f`: `/data/.perry` mounted, `XDG_DATA_HOME=/data/.perry`,
-  `Telegram: polling for messages`, backend health 200. The `/account` build
-  waits for midnight (below).
-- Controller `https://perry-ctrl-26af6748.azurewebsites.net` (F1 free) live and
-  deployed from `06be470`.
-- Telegram menu: 21 commands now, 22 after the midnight build adds `/account` —
-  `/start`, `/career`, `/schedule`, `/schedules`, `/account`, `/help`,
-  `/status_vm`, `/start_vm`, `/stop_vm`, `/restart_vm`, `/model`, `/think`,
-  `/access`, `/usage`, `/stop`, `/pause`, `/resume`, `/compact`, `/note`,
-  `/status`, `/pair`, `/reset`.
+- Container `perry` on image `perry:new` = `73c52ff19a84`, built from
+  `479205b` at 14:16 UTC: `/data/.perry` mounted, `XDG_DATA_HOME=/data/.perry`,
+  `Telegram: polling for messages`, backend health 200, 22-command menu.
+  `perry:latest` = `769084e965a4` is the rollback. `/account` and `/schedule`
+  are in this image.
+- Controller `https://perry-ctrl-26af6748.azurewebsites.net` (F1 free) live,
+  deployed from `e24733e`: wake-on-message, synchronous idle stop, and the
+  settings `PERRY_BASE_URL=http://172.198.61.169:7377` and
+  `PERRY_DASHBOARD_KEY` (same key as the VM). `GET /` shows
+  `"forwarding": true`.
+- Auto-off installed on the VM and its timer active: `auto_off.py` checks every
+  5 min, stops after **30 min idle**, never under **10 min uptime**, and not
+  when a job is due within **5 min**. The stop waits for the webhook takeover;
+  the next message starts the VM, forwards that update, and Perry answers.
+- Telegram menu: 22 commands — `/start`, `/career`, `/schedule`, `/schedules`,
+  `/account`, `/help`, `/status_vm`, `/start_vm`, `/stop_vm`, `/restart_vm`,
+  `/model`, `/think`, `/access`, `/usage`, `/stop`, `/pause`, `/resume`,
+  `/compact`, `/note`, `/status`, `/pair`, `/reset`.
 
 ## Schedules from Telegram
 
@@ -50,15 +57,21 @@ Verified against the live system. Tokens and keys live in `/tmp/perry.env`
 - It resets to `origin/main`, builds, swaps with rollback, waits for health,
   publishes the menu from the controller's `COMMANDS`, and reports in Telegram.
   Log: `/home/azureuser/midnight-build.log`.
-- Installed now; nothing has been rebuilt since `769084e965a4`.
+- Run manually at 14:16 UTC on 2026-10-25; its cron entry was removed first, so
+  it does not run again at 18:30. Image `73c52ff19a84`, health 200, menu
+  published, old `769084e965a4` kept as `perry:latest`.
 
-## The one thing that is broken, and it is not Perry
+## The model pool, and the fallback
 
-OpenCode's **free** allowance is used up: every one of the nine models says
-`Internal error: Free usage limit reached. Connect a provider or subscribe to
-OpenCode Go`. It is one account-wide allowance, not per model — proven by
-switching the chat to `opencode/big-pickle` from Telegram (the run records that
-model) and getting the same refusal.
+OpenCode's **free** allowance was used up when tested: every one of the nine
+models said `Internal error: Free usage limit reached. Connect a provider or
+subscribe to OpenCode Go`. It is one account-wide allowance, not per model —
+proven by switching the chat to `opencode/big-pickle` from Telegram (the run
+records that model) and getting the same refusal.
+
+Groq is connected now, so a quota refusal on the bundled pool is no longer a
+dead end: `/model` lists the seven Groq models too, and switching is manual
+(`/model groq/openai/gpt-oss-20b`). There is no automatic failover.
 
 What Perry does about it:
 - `/model` (menu or typed) still answers, because commands never reach the
@@ -67,8 +80,10 @@ What Perry does about it:
 - A turn refused for the limit ends with "That model's plan is used up. /model
   lists this chat's models; /model <name> switches." instead of a raw engine
   string.
-- `/schedules` works; `/schedule <words>` reaches the engine and therefore
-  cannot create a job until the plan has room.
+- `/schedules` works; `/schedule <words>` is a turn, so it can create a job as
+  soon as the chosen model has room (for example a Groq one).
+- `/model <name>` switches this chat to another engine's model and picks up
+  from the chat so far.
 
 Ways out, in order of effort:
 1. Wait for the free allowance to reset (it resets on OpenCode's schedule).
@@ -79,15 +94,13 @@ Ways out, in order of effort:
    Settings → Engines → OpenCode → Connect, which refreshes the list at once
    (a manual login shows up within two minutes, the list's cache). Auth lives
    in `/data/.perry/opencode`, on the volume, so it survives container
-   recreates. This needs the "Backup for model switching" change (`38fdb97`):
-   until the midnight build runs, the image still filters `/model` to
-   `opencode/*`. After it, bundled models stay first (so the default does not
-   move) and only the models of providers actually connected with `opencode
-   auth login` follow — switching is manual with `/model <name>`; there is no
-   automatic failover to another model.
+   recreates. Bundled models stay first (so the default does not move) and only
+   the models of providers actually connected with `opencode auth login`
+   follow — switching is manual with `/model <name>`; there is no automatic
+   failover to another model.
    **Groq is connected** on the VM (`groq` in `opencode auth list`, 7 models;
-   `opencode run -m groq/openai/gpt-oss-20b` answered `GROQ OK`). The new image
-   will list 16 models: the nine bundled, then the seven Groq. The key is in
+   `opencode run -m groq/openai/gpt-oss-20b` answered `GROQ OK`). The running
+   image lists 16 models: the nine bundled, then the seven Groq. The key is in
    `/data/.perry/opencode`, never in the repo or `perry.env`.
 3. Subscribe to OpenCode Go.
 
@@ -119,14 +132,32 @@ auth now survive a container recreate.
   `337qv2ztghpty0f4kqbd1mbcer` carries the `create_job` instruction and the
   owner's words, and failed only on the OpenCode quota.
 - `/data/.perry/opencode` is populated and used after that turn.
-- `pnpm typecheck` and `cloud/azure-vm-controller/check_app.py` pass.
+- The running image lists **16 models** (`models:list`): the nine bundled, then
+  the seven Groq, default `opencode/opencode/beam-free`. This is the live list,
+  not a projection.
+- Auto-off, end to end: the watchdog asked the controller to stop at 14:25:14,
+  Azure showed deallocated at 14:25:41, the controller installed the webhook.
+  A synthetic owner update then started the VM at 14:27:46; the admin route
+  answered at 14:29:00 (**74 s**), the controller removed the webhook, and Perry
+  was polling again. The owner chat got the `/status` reply.
+- `python3 cloud/azure-vm-controller/check_app.py` and
+  `python3 cloud/azure-vm/check_auto_off.py` pass; `pnpm typecheck` passes.
 
 ## Open
 
 - career-ops onboarding in `/data/.perry/workspace/career-ops`: `cv.md`,
   `config/profile.yml`, `modes/_profile.md`, `portals.yml`.
 - NSG rule `open-port-7377` is still `*`; port 7377 carries the dashboard and
-  `/api/backend/admin` (key-gated). Narrow it or use an SSH tunnel.
+  `/api/backend/admin` (key-gated). The controller now sends the dashboard key
+  to it over plain HTTP to forward a waking message, so anyone who can watch
+  that path can read the key. Narrow the rule to App Service's outbound
+  addresses, or put an HTTPS front (a DNS name and Caddy) in front of 7377.
+- Auto-off does not wake for an exact schedule time: a job due while the VM is
+  off catches up on the next message (`jobs.tick`). An external wake timer is
+  the upgrade if exact-time delivery is needed.
+- The controller's wake runs in a background thread after Telegram's 200. An
+  App Service recycle during that ~75 s would lose the forwarded message; the
+  owner sees "Starting Perry" but no reply and can resend.
 - `perry:latest` (3.36 GB) is the rollback image; delete when happy.
 - Build images on the Mac and copy them over to stop paying ~15 minutes of VM
   CPU per change; the VM build only exists because it was the simplest path.
@@ -148,17 +179,53 @@ cd cloud/azure-vm-controller && python3 check_app.py && zip -q /tmp/ctrl.zip app
 az webapp deployment source config-zip -g perry-rg -n perry-ctrl-26af6748 --src /tmp/ctrl.zip
 ```
 
+The wake path also needs two app settings (already set; use the VM's
+`DASHBOARD_KEY` value without printing it):
+
+```text
+PERRY_BASE_URL=http://172.198.61.169:7377
+PERRY_DASHBOARD_KEY=<the VM's DASHBOARD_KEY>
+```
+
 ## Cost
 
-`B2ls_v2` ≈ $0.0403/hr while running (~$29/month if never stopped); controller
-F1 free; disk reused. `/stop-vm` deallocates and keeps the static IP.
+`B2ls_v2` ≈ $0.0448/hr while running (Central India proxy; about $32.70/month
+24/7), plus the 32 GiB disk ($1.69) and the static IP ($3.65): **$38.04/month**
+awake all the time, **$5.34/month** deallocated. With 30-minute auto-off and a
+couple of hours of use a day it lands near **$8–10/month**, so the $100 student
+credit lasts most of its 12-month life. The credit expires; leftover credit is
+not refunded.
+
+## Auto-off install
+
+Files in `cloud/azure-vm`: `auto_off.py`, `check_auto_off.py`,
+`perry-auto-off.service`, `perry-auto-off.timer`. They are installed in
+`/usr/local/bin/perry-auto-off.py` and `/etc/systemd/system/`, with the timer
+enabled. Logs:
+
+```bash
+systemctl list-timers perry-auto-off.timer
+sudo journalctl -u perry-auto-off.service -n 20 --no-pager
+```
+
+Dry run, without stopping anything:
+
+```bash
+sudo systemd-run --pipe --wait \
+  --property=EnvironmentFile=/home/azureuser/perry.env \
+  --setenv=PERRY_AUTO_OFF_DRY_RUN=1 \
+  /usr/bin/python3 /usr/local/bin/perry-auto-off.py
+```
 
 ## Key paths
 
 - `cloud/azure-vm-controller/app.py` — WSGI controller; `COMMANDS`,
-  `install_commands()`, webhook takeover.
+  `install_commands()`, webhook takeover, `wake()`, `stop_vm(wait=True)`.
 - `cloud/azure-vm-controller/check_app.py` — offline self-check.
-- `cloud/azure-vm/README.md` — VM, swap, container, career-ops runbook.
+- `cloud/azure-vm/auto_off.py` — idle decision and the controller stop.
+- `cloud/azure-vm/check_auto_off.py` — offline self-check for the money rules.
+- `cloud/azure-vm/perry-auto-off.service`, `.timer` — systemd units on the VM.
+- `cloud/azure-vm/README.md` — VM, swap, container, auto-off, career-ops.
 - `convex/brain.ts` — command routing; `_vm` → `-vm` fold; `/model` quota note;
   `/schedule` turn and `/schedules` list.
 - `convex/lib/commands.ts` — `scheduleAsk()`, `describeSchedules()`.
